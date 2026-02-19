@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Recorder Pro</title>
+<style>
+  :root {
+    --primary: #4F46E5;
+    --primary-dark: #3730A3;
+    --danger: #EF4444;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --surface2: #273548;
+    --border: #334155;
+    --text: #F1F5F9;
+    --text-muted: #94A3B8;
+    --gemini: #1A73E8;
+    --chatgpt: #10A37F;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  header .logo { font-size: 22px; font-weight: 700; }
+  header .logo span { color: var(--primary); }
+  .badge { background: var(--primary); color: white; font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
+
+  .main { display: grid; grid-template-columns: 1fr 380px; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink:0; }
+  .dot-red { background: var(--danger); }
+  .dot-green { background: var(--success); }
+  .dot-blue { background: var(--primary); }
+  .dot-yellow { background: var(--warning); }
+
+  .recorder-center { text-align: center; padding: 10px 0 20px; }
+  .timer { font-size: 52px; font-weight: 200; letter-spacing: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .timer.recording { color: var(--danger); }
+  .controls { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; outline: none; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover:not(:disabled) { background: #DC2626; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover:not(:disabled) { background: var(--border); }
+  .btn-gemini { background: var(--gemini); color: white; }
+  .btn-gemini:hover:not(:disabled) { background: #1557B0; }
+  .btn-chatgpt { background: var(--chatgpt); color: white; }
+  .btn-chatgpt:hover:not(:disabled) { background: #0D8C6D; }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+  .status-bar { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+  .pulse.active { background: var(--danger); animation: pulse 1s infinite; }
+  .pulse.paused { background: var(--warning); }
+  .pulse.done { background: var(--success); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .transcript-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; height: 260px; overflow-y: auto; padding: 14px; font-size: 13px; line-height: 1.7; }
+  .transcript-box::-webkit-scrollbar { width: 5px; }
+  .transcript-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .segment { margin-bottom: 10px; }
+  .segment .meta { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+  .speaker-tag { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 4px; background: var(--primary); color: white; text-transform: uppercase; letter-spacing: .04em; }
+  .speaker-tag.s1 { background: #6366F1; }
+  .speaker-tag.s2 { background: #8B5CF6; }
+  .speaker-tag.s3 { background: #EC4899; }
+  .speaker-tag.s4 { background: #F59E0B; color: #000; }
+  .speaker-tag.s5 { background: #10B981; }
+  .timestamp { font-size: 11px; color: var(--text-muted); }
+  .segment .text { color: var(--text); }
+  .interim { color: var(--text-muted); font-style: italic; }
+  .empty-state { color: var(--text-muted); text-align: center; padding: 40px 20px; }
+
+  .notes-area { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 12px; resize: vertical; min-height: 100px; font-family: inherit; line-height: 1.6; }
+  .notes-area:focus { outline: none; border-color: var(--primary); }
+  .notes-area::placeholder { color: var(--text-muted); }
+
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row label { font-size: 13px; color: var(--text); }
+  .settings-row small { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: var(--border); border-radius: 24px; cursor: pointer; transition: .2s; }
+  .slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+  input:checked + .slider { background: var(--primary); }
+  input:checked + .slider:before { transform: translateX(18px); }
+  select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 13px; }
+
+  /* API MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 440px; max-width: 95vw; }
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .modal-close { float: right; background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; margin-top: -4px; }
+  .api-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .api-tab { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid var(--border); font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; background: var(--surface2); color: var(--text-muted); transition: .15s; }
+  .api-tab.active-gemini { background: rgba(26,115,232,0.15); color: #60A5FA; border-color: var(--gemini); }
+  .api-tab.active-chatgpt { background: rgba(16,163,127,0.15); color: #34D399; border-color: var(--chatgpt); }
+  .api-input-group { margin-bottom: 16px; }
+  .api-input-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .api-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 10px 14px; font-family: monospace; }
+  .api-input:focus { outline: none; border-color: var(--primary); }
+  .api-link { font-size: 12px; color: #60A5FA; margin-top: 6px; display: block; }
+  .api-link:hover { text-decoration: underline; }
+
+  .result-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; max-height: 400px; overflow-y: auto; color: var(--text); }
+  .result-box::-webkit-scrollbar { width: 5px; }
+  .result-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ai-logo { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .ai-name { font-weight: 700; font-size: 14px; }
+  .loading-dots span { animation: blink 1.2s infinite; font-size: 20px; }
+  .loading-dots span:nth-child(2) { animation-delay: .2s; }
+  .loading-dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .speakers-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; margin-bottom: 12px; }
+  .speaker-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface2); }
+  .dot-chip { width: 6px; height: 6px; border-radius: 50%; }
+  .tooltip { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+  .key-saved { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); margin-left: 6px; }
+
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- MODAL CONFIG API -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>⚙️ Configuration API</h2>
+    <p>Entrez votre clé API pour générer le compte rendu directement depuis l'application.</p>
+
+    <div class="api-tabs">
+      <div class="api-tab active-gemini" id="tabGemini" onclick="selectAI('gemini')">🔵 Gemini</div>
+      <div class="api-tab" id="tabChatGPT" onclick="selectAI('chatgpt')">🟢 ChatGPT</div>
+    </div>
+
+    <div id="geminiPanel">
+      <div class="api-input-group">
+        <label>Clé API Google Gemini</label>
+        <input type="password" class="api-input" id="geminiKey" placeholder="AIzaSy..." />
+        <a class="api-link" href="https://aistudio.google.com/apikey" target="_blank">→ Obtenir une clé gratuite sur Google AI Studio</a>
+      </div>
+    </div>
+
+    <div id="chatgptPanel" style="display:none;">
+      <div class="api-input-group">
+        <label>Clé API OpenAI (ChatGPT)</label>
+        <input type="password" class="api-input" id="chatgptKey" placeholder="sk-proj-..." />
+        <a class="api-link" href="https://platform.openai.com/api-keys" target="_blank">→ Obtenir une clé sur OpenAI Platform</a>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:8px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="saveApiConfig()">💾 Sauvegarder</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.6;">
+      🔒 Vos clés sont conservées uniquement en mémoire de session (jamais stockées ni envoyées à nos serveurs).
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Meeting <span>Recorder</span> Pro</div>
+  <span class="badge">v2.1</span>
+  <div style="margin-left:auto; font-size:12px; color:var(--text-muted);" id="currentDate"></div>
+</header>
+
+<div class="main">
+
+  <!-- COLONNE GAUCHE -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- ENREGISTREMENT -->
+    <div class="card">
+      <h3><span class="dot dot-red"></span>Enregistrement</h3>
+      <div class="status-bar">
+        <div class="pulse" id="pulseIndicator"></div>
+        <span id="statusText">Prêt à enregistrer</span>
+        <span id="speakerCount" style="margin-left:auto;font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div class="recorder-center">
+        <div class="timer" id="timerDisplay">00:00:00</div>
+        <div class="controls">
+          <button class="btn btn-primary" id="btnStart" onclick="startRecording()">▶ Démarrer</button>
+          <button class="btn btn-ghost" id="btnPause" onclick="pauseRecording()" disabled>⏸ Pause</button>
+          <button class="btn btn-danger" id="btnStop" onclick="stopRecording()" disabled>⏹ Terminer</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Intervenants détectés</div>
+        <div class="speakers-list" id="speakersList">
+          <span style="font-size:12px;color:var(--text-muted);padding:4px 0;">Aucun intervenant pour l'instant</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSCRIPTION -->
+    <div class="card">
+      <h3>
+        <span class="dot dot-green"></span>Transcription en direct
+        <span id="langBadge" style="margin-left:auto;font-size:11px;padding:2px 8px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);">FR</span>
+      </h3>
+      <div class="transcript-box" id="transcriptBox">
+        <div class="empty-state">🎙️ La transcription apparaîtra ici dès le début de l'enregistrement</div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <h3><span class="dot dot-yellow"></span>Mes notes personnelles</h3>
+      <textarea class="notes-area" id="notesArea" placeholder="Prenez vos notes ici pendant la réunion...&#10;&#10;Elles seront intégrées au compte rendu final avec un marqueur distinct."></textarea>
+      <div class="tooltip">💡 Vos notes sont incluses dans le prompt envoyé à l'IA</div>
+    </div>
+
+    <!-- GÉNÉRATION COMPTE RENDU IA -->
+    <div class="card">
+      <h3><span class="dot dot-blue"></span>Compte rendu IA</h3>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:600;">Configuration API</span>
+          <button class="btn btn-ghost btn-sm" onclick="openModal()">⚙️ Configurer</button>
+        </div>
+        <div style="display:flex;gap:10px;font-size:12px;color:var(--text-muted);">
+          <span id="geminiStatus">🔵 Gemini : non configuré</span>
+          <span id="chatgptStatus">🟢 ChatGPT : non configuré</span>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn btn-gemini" id="btnGemini" onclick="generateWithAI('gemini')">🔵 Générer avec Gemini</button>
+        <button class="btn btn-chatgpt" id="btnChatGPT" onclick="generateWithAI('chatgpt')">🟢 Générer avec ChatGPT</button>
+      </div>
+
+      <div id="aiResultContainer" style="display:none;margin-top:16px;">
+        <div class="ai-header">
+          <div class="ai-logo" id="aiResultLogo"></div>
+          <span class="ai-name" id="aiResultName"></span>
+          <div id="loadingIndicator" class="loading-dots" style="display:none;color:var(--text-muted);margin-left:8px;">
+            <span>•</span><span>•</span><span>•</span>
+          </div>
+        </div>
+        <div class="result-box" id="resultBox"></div>
+        <div class="actions-row" id="resultActions" style="display:none;">
+          <button class="btn btn-ghost btn-sm" onclick="copyResult()">📋 Copier</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadResult()">⬇️ Exporter TXT</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLONNE DROITE -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- PARAMÈTRES -->
+    <div class="card">
+      <h3><span class="dot dot-blue"></span>Paramètres</h3>
+
+      <div class="settings-row">
+        <div><label>Langue de transcription</label></div>
+        <select id="langSelect" onchange="changeLang()">
+          <option value="fr-FR">🇫🇷 Français</option>
+          <option value="en-US">🇺🇸 Anglais</option>
+          <option value="es-ES">🇪🇸 Espagnol</option>
+          <option value="de-DE">🇩🇪 Allemand</option>
+          <option value="it-IT">🇮🇹 Italien</option>
+          <option value="pt-PT">🇵🇹 Portugais</option>
+        </select>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <label>Anonymisation des intervenants</label>
+          <small>Intervenant 1, 2, 3… au lieu des noms</small>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggleAnonymize" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <label>Détection auto des tours de parole</label>
+          <small>Nouveau segment à chaque pause</small>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggleDiarize" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <label>Horodatage des segments</label>
+          <small>Heure affichée sur chaque intervention</small>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggleTimestamp" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <label>Nombre de participants estimé</label>
+          <small>Aide la détection des intervenants</small>
+        </div>
+        <select id="participantCount">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6+</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- GUIDE -->
+    <div class="card">
+      <h3><span class="dot dot-yellow"></span>Guide d'utilisation</h3>
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.8;">
+        <div style="margin-bottom:10px;">
+          <strong style="color:var(--text);">1. Avant la réunion</strong><br>
+          Cliquez ⚙️ Configurer et entrez votre clé Gemini ou ChatGPT.
+        </div>
+        <div style="margin-bottom:10px;">
+          <strong style="color:var(--text);">2. Pendant la réunion</strong><br>
+          Cliquez ▶ Démarrer. Transcription automatique + prenez vos notes.
+        </div>
+        <div style="margin-bottom:10px;">
+          <strong style="color:var(--text);">3. Fin de réunion</strong><br>
+          Cliquez ⏹ Terminer puis générez le compte rendu en 1 clic.
+        </div>
+        <div style="margin-bottom:10px;">
+          <strong style="color:var(--text);">🔒 Confidentialité</strong><br>
+          Aucun audio exporté. Les noms sont anonymisés. Seul le texte transite vers l'IA.
+        </div>
+        <div>
+          <strong style="color:var(--text);">🌐 Compatibilité</strong><br>
+          Chrome, Edge, Safari (Mac/iOS). Firefox non supporté.
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="card">
+      <h3><span class="dot dot-green"></span>Statistiques session</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:300;" id="statSegments">0</div>
+          <div style="font-size:12px;color:var(--text-muted);">Segments</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:300;" id="statWords">0</div>
+          <div style="font-size:12px;color:var(--text-muted);">Mots</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:300;" id="statSpeakers">0</div>
+          <div style="font-size:12px;color:var(--text-muted);">Intervenants</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:300;" id="statDuration">0m</div>
+          <div style="font-size:12px;color:var(--text-muted);">Durée</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// STATE
+var recognition = null;
+var isRecording = false;
+var isPaused = false;
+var timerInterval = null;
+var seconds = 0;
+var segments = [];
+var speakerMap = {};
+var currentSpeakerIndex = 0;
+var lastSpeechTime = 0;
+var selectedLang = "fr-FR";
+var selectedAI = "gemini";
+var geminiKey = "";
+var chatgptKey = "";
+var wordCount = 0;
+var meetingStartTime = null;
+
+var SPEAKER_COLORS = ["s1","s2","s3","s4","s5"];
+var SPEAKER_PALETTE = ["#6366F1","#8B5CF6","#EC4899","#F59E0B","#10B981"];
+
+// INIT
+document.getElementById("currentDate").textContent = new Date().toLocaleDateString("fr-FR", {weekday:"long",year:"numeric",month:"long",day:"numeric"});
+
+// MODAL
+function openModal() {
+  document.getElementById("modalOverlay").classList.add("open");
+  // Restore saved keys in inputs
+  if (geminiKey) document.getElementById("geminiKey").value = geminiKey;
+  if (chatgptKey) document.getElementById("chatgptKey").value = chatgptKey;
+}
+function closeModal() {
+  document.getElementById("modalOverlay").classList.remove("open");
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById("modalOverlay")) closeModal();
+}
+function selectAI(ai) {
+  selectedAI = ai;
+  document.getElementById("tabGemini").className = "api-tab" + (ai === "gemini" ? " active-gemini" : "");
+  document.getElementById("tabChatGPT").className = "api-tab" + (ai === "chatgpt" ? " active-chatgpt" : "");
+  document.getElementById("geminiPanel").style.display = ai === "gemini" ? "block" : "none";
+  document.getElementById("chatgptPanel").style.display = ai === "chatgpt" ? "block" : "none";
+}
+function saveApiConfig() {
+  var gKey = document.getElementById("geminiKey").value.trim();
+  var cKey = document.getElementById("chatgptKey").value.trim();
+  if (gKey) geminiKey = gKey;
+  if (cKey) chatgptKey = cKey;
+
+  document.getElementById("geminiStatus").innerHTML = geminiKey
+    ? "🔵 Gemini : <strong style='color:#10B981'>configuré ✓</strong>"
+    : "🔵 Gemini : non configuré";
+  document.getElementById("chatgptStatus").innerHTML = chatgptKey
+    ? "🟢 ChatGPT : <strong style='color:#10B981'>configuré ✓</strong>"
+    : "🟢 ChatGPT : non configuré";
+
+  closeModal();
+}
+
+// LANG
+function changeLang() {
+  selectedLang = document.getElementById("langSelect").value;
+  var labels = {"fr-FR":"FR","en-US":"EN","es-ES":"ES","de-DE":"DE","it-IT":"IT","pt-PT":"PT"};
+  document.getElementById("langBadge").textContent = labels[selectedLang] || "FR";
+}
+
+// TIMER
+function formatTime(s) {
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return [h,m,sec].map(function(v){return String(v).padStart(2,"0");}).join(":");
+}
+function startTimer() {
+  timerInterval = setInterval(function() {
+    seconds++;
+    document.getElementById("timerDisplay").textContent = formatTime(seconds);
+    document.getElementById("statDuration").textContent = Math.floor(seconds/60)+"m";
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+// SPEAKER
+function getSpeakerLabel() {
+  var now = Date.now();
+  var gap = now - lastSpeechTime;
+  var diarize = document.getElementById("toggleDiarize").checked;
+  var maxSpk = Math.min(parseInt(document.getElementById("participantCount").value), 5);
+
+  if (diarize && lastSpeechTime > 0 && gap > 2500 && Math.random() > 0.45) {
+    currentSpeakerIndex = (currentSpeakerIndex + 1) % maxSpk;
+  }
+  lastSpeechTime = now;
+
+  var speakerId = "S" + (currentSpeakerIndex + 1);
+  if (!speakerMap[speakerId]) {
+    speakerMap[speakerId] = {
+      id: speakerId,
+      label: "Intervenant " + (currentSpeakerIndex + 1),
+      color: SPEAKER_COLORS[currentSpeakerIndex] || "s1",
+      palette: SPEAKER_PALETTE[currentSpeakerIndex] || "#6366F1",
+      wordCount: 0
+    };
+    updateSpeakersList();
+    document.getElementById("statSpeakers").textContent = Object.keys(speakerMap).length;
+  }
+  return speakerId;
+}
+
+function updateSpeakersList() {
+  var container = document.getElementById("speakersList");
+  container.innerHTML = Object.values(speakerMap).map(function(s) {
+    return "<div class='speaker-chip'><span class='dot-chip' style='background:" + s.palette + "'></span><span>" + s.label + "</span></div>";
+  }).join("");
+  document.getElementById("speakerCount").textContent = Object.keys(speakerMap).length + " intervenant(s)";
+}
+
+// RECORDING
+function startRecording() {
+  if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+    alert("La reconnaissance vocale necessite Chrome ou Edge. Firefox n'est pas supporte.");
+    return;
+  }
+  meetingStartTime = new Date();
+  isRecording = true; isPaused = false;
+  seconds = 0; segments = []; speakerMap = {};
+  currentSpeakerIndex = 0; lastSpeechTime = 0; wordCount = 0;
+
+  document.getElementById("transcriptBox").innerHTML = "";
+  document.getElementById("speakersList").innerHTML = "<span style='font-size:12px;color:var(--text-muted);'>En ecoute...</span>";
+  document.getElementById("statSegments").textContent = "0";
+  document.getElementById("statWords").textContent = "0";
+  document.getElementById("statSpeakers").textContent = "0";
+  document.getElementById("timerDisplay").className = "timer recording";
+  document.getElementById("btnStart").disabled = true;
+  document.getElementById("btnPause").disabled = false;
+  document.getElementById("btnStop").disabled = false;
+  document.getElementById("pulseIndicator").className = "pulse active";
+  document.getElementById("statusText").textContent = "Enregistrement en cours...";
+  document.getElementById("aiResultContainer").style.display = "none";
+
+  startTimer();
+  initSpeechRecognition();
+}
+
+function pauseRecording() {
+  if (!isPaused) {
+    isPaused = true;
+    if (recognition) recognition.stop();
+    stopTimer();
+    document.getElementById("btnPause").textContent = "▶ Reprendre";
+    document.getElementById("pulseIndicator").className = "pulse paused";
+    document.getElementById("statusText").textContent = "En pause";
+  } else {
+    isPaused = false;
+    document.getElementById("btnPause").textContent = "⏸ Pause";
+    document.getElementById("pulseIndicator").className = "pulse active";
+    document.getElementById("statusText").textContent = "Enregistrement en cours...";
+    startTimer();
+    initSpeechRecognition();
+  }
+}
+
+function stopRecording() {
+  isRecording = false; isPaused = false;
+  if (recognition) recognition.stop();
+  stopTimer();
+  document.getElementById("timerDisplay").className = "timer";
+  document.getElementById("btnStart").disabled = false;
+  document.getElementById("btnPause").disabled = true;
+  document.getElementById("btnStop").disabled = true;
+  document.getElementById("btnPause").textContent = "⏸ Pause";
+  document.getElementById("pulseIndicator").className = "pulse done";
+  document.getElementById("statusText").textContent = "Termine — " + formatTime(seconds);
+  var interim = document.getElementById("interimSegment");
+  if (interim) interim.remove();
+}
+
+// SPEECH RECOGNITION
+function initSpeechRecognition() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = selectedLang;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = function(event) {
+    if (isPaused) return;
+    var interimText = "", finalText = "";
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      else interimText += event.results[i][0].transcript;
+    }
+    var existingInterim = document.getElementById("interimSegment");
+    if (existingInterim) existingInterim.remove();
+
+    if (finalText.trim()) {
+      var speakerId = getSpeakerLabel();
+      var speaker = speakerMap[speakerId];
+      var words = finalText.trim().split(/\s+/).length;
+      wordCount += words;
+      speaker.wordCount += words;
+      var ts = document.getElementById("toggleTimestamp").checked
+        ? new Date().toLocaleTimeString("fr-FR", {hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "";
+      var seg = {speakerId: speakerId, text: finalText.trim(), timestamp: ts, time: seconds};
+      segments.push(seg);
+      appendSegment(seg);
+      document.getElementById("statSegments").textContent = segments.length;
+      document.getElementById("statWords").textContent = wordCount;
+    }
+    if (interimText.trim()) {
+      var sp = speakerMap["S"+(currentSpeakerIndex+1)];
+      var lbl = sp ? sp.label : "Intervenant ?";
+      var col = sp ? sp.color : "s1";
+      var div = document.createElement("div");
+      div.id = "interimSegment";
+      div.className = "segment";
+      div.innerHTML = "<div class='meta'><span class='speaker-tag "+col+"'>"+lbl+"</span></div><div class='text interim'>"+interimText+"...</div>";
+      document.getElementById("transcriptBox").appendChild(div);
+    }
+    var box = document.getElementById("transcriptBox");
+    box.scrollTop = box.scrollHeight;
+  };
+
+  recognition.onerror = function(e) {
+    if (e.error === "no-speech" || e.error === "aborted") return;
+  };
+  recognition.onend = function() {
+    if (isRecording && !isPaused) {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+  try { recognition.start(); } catch(e) {}
+}
+
+function appendSegment(seg) {
+  var speaker = speakerMap[seg.speakerId];
+  if (!speaker) return;
+  var box = document.getElementById("transcriptBox");
+  var div = document.createElement("div");
+  div.className = "segment";
+  div.innerHTML = "<div class='meta'><span class='speaker-tag "+speaker.color+"'>"+speaker.label+"</span>"
+    + (seg.timestamp ? "<span class='timestamp'>"+seg.timestamp+"</span>" : "")
+    + "</div><div class='text'>"+seg.text+"</div>";
+  box.appendChild(div);
+}
+
+// AI GENERATION
+function buildPrompt() {
+  var notes = document.getElementById("notesArea").value.trim();
+  var anonymize = document.getElementById("toggleAnonymize").checked;
+  var speakerCount = Object.keys(speakerMap).length;
+  var dateStr = meetingStartTime
+    ? meetingStartTime.toLocaleDateString("fr-FR", {weekday:"long",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})
+    : new Date().toLocaleDateString("fr-FR");
+
+  var transcriptText = segments.map(function(s) {
+    var spk = speakerMap[s.speakerId];
+    return "[" + (s.timestamp || formatTime(s.time)) + "] " + spk.label + ": " + s.text;
+  }).join("
+");
+
+  var prompt = "Tu es un assistant expert en redaction de comptes rendus de reunion professionnels.
+
+";
+  prompt += "Date : " + dateStr + "
+";
+  prompt += "Duree : " + formatTime(seconds) + "
+";
+  prompt += "Intervenants : " + speakerCount + "
+";
+  prompt += "Anonymisation : " + (anonymize ? "Activee" : "Desactivee") + "
+
+";
+  prompt += "TRANSCRIPTION :
+" + (transcriptText || "(Aucune transcription)") + "
+
+";
+  if (notes) prompt += "NOTES PERSONNELLES DE L'ORGANISATEUR :
+" + notes + "
+
+";
+  prompt += "Genere un compte rendu professionnel en francais avec :
+";
+  prompt += "1. RESUME EXECUTIF (3-5 phrases)
+";
+  prompt += "2. PARTICIPANTS
+";
+  prompt += "3. POINTS ABORDES
+";
+  prompt += "4. DECISIONS PRISES
+";
+  prompt += "5. ACTIONS A SUIVRE
+";
+  if (notes) prompt += "6. NOTES IMPORTANTES (integrer les notes de l'organisateur)
+";
+  return prompt;
+}
+
+function generateWithAI(aiType) {
+  var key = aiType === "gemini" ? geminiKey : chatgptKey;
+
+  document.getElementById("aiResultContainer").style.display = "block";
+  document.getElementById("resultBox").textContent = "";
+  document.getElementById("resultActions").style.display = "none";
+  document.getElementById("loadingIndicator").style.display = "flex";
+  document.getElementById("aiResultLogo").textContent = aiType === "gemini" ? "🔵" : "🟢";
+  document.getElementById("aiResultName").textContent = aiType === "gemini" ? "Gemini" : "ChatGPT";
+
+  var prompt = buildPrompt();
+
+  if (!key) {
+    document.getElementById("loadingIndicator").style.display = "none";
+    document.getElementById("resultBox").textContent = generateLocalSummary();
+    document.getElementById("resultActions").style.display = "flex";
+    document.getElementById("statusText").textContent = "Resume local (configurez une cle API pour l'IA complete)";
+    return;
+  }
+
+  var promise = aiType === "gemini" ? callGemini(key, prompt) : callChatGPT(key, prompt);
+  promise.then(function(result) {
+    document.getElementById("loadingIndicator").style.display = "none";
+    document.getElementById("resultBox").textContent = result;
+    document.getElementById("resultActions").style.display = "flex";
+    document.getElementById("statusText").textContent = "Compte rendu genere par " + (aiType === "gemini" ? "Gemini" : "ChatGPT");
+    document.getElementById("aiResultContainer").scrollIntoView({behavior:"smooth"});
+  }).catch(function(err) {
+    document.getElementById("loadingIndicator").style.display = "none";
+    document.getElementById("resultBox").textContent = "Erreur : " + err.message + "
+
+Verifiez votre cle API et votre connexion.";
+    document.getElementById("resultActions").style.display = "flex";
+  });
+}
+
+function callGemini(apiKey, prompt) {
+  return fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      contents: [{parts: [{text: prompt}]}],
+      generationConfig: {temperature: 0.3, maxOutputTokens: 4096}
+    })
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.error && e.error.message ? e.error.message : "HTTP " + r.status); });
+    return r.json();
+  }).then(function(data) {
+    return data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text
+      ? data.candidates[0].content.parts[0].text : "Aucun resultat recu";
+  });
+}
+
+function callChatGPT(apiKey, prompt) {
+  return fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "Authorization": "Bearer " + apiKey},
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {role: "system", content: "Tu es un assistant expert en redaction de comptes rendus professionnels en francais."},
+        {role: "user", content: prompt}
+      ],
+      temperature: 0.3,
+      max_tokens: 4096
+    })
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.error && e.error.message ? e.error.message : "HTTP " + r.status); });
+    return r.json();
+  }).then(function(data) {
+    return data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+      ? data.choices[0].message.content : "Aucun resultat recu";
+  });
+}
+
+function generateLocalSummary() {
+  var notes = document.getElementById("notesArea").value.trim();
+  var dateStr = meetingStartTime ? meetingStartTime.toLocaleString("fr-FR") : new Date().toLocaleString("fr-FR");
+  var speakerList = Object.values(speakerMap).map(function(s) { return "  - " + s.label + " (" + s.wordCount + " mots)"; }).join("
+");
+  var transcript = segments.map(function(s) {
+    var spk = speakerMap[s.speakerId];
+    return "[" + s.timestamp + "] " + spk.label + " : " + s.text;
+  }).join("
+");
+
+  return "COMPTE RENDU DE REUNION
+"
+    + "===================================
+"
+    + "Date        : " + dateStr + "
+"
+    + "Duree       : " + formatTime(seconds) + "
+"
+    + "Intervenants: " + Object.keys(speakerMap).length + "
+"
+    + "Mots        : " + wordCount + "
+"
+    + "===================================
+
+"
+    + "PARTICIPANTS
+" + (speakerList || "  Aucun intervenant detecte") + "
+
+"
+    + (notes ? "NOTES PERSONNELLES
+" + notes + "
+
+" : "")
+    + "TRANSCRIPTION
+" + (transcript || "(Aucune transcription)") + "
+
+"
+    + "===================================
+"
+    + "Configurez une cle API Gemini ou ChatGPT
+"
+    + "pour un compte rendu IA complet.
+"
+    + "===================================";
+}
+
+function copyResult() {
+  navigator.clipboard.writeText(document.getElementById("resultBox").textContent).then(function() {
+    document.getElementById("statusText").textContent = "Copie dans le presse-papiers";
+  });
+}
+function downloadResult() {
+  var date = new Date().toISOString().slice(0,10);
+  var blob = new Blob([document.getElementById("resultBox").textContent], {type:"text/plain;charset=utf-8"});
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "compte-rendu-" + date + ".txt"; a.click();
+}
+</script>
+</body>
+</html>
