@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Recorder Pro</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0F172A; color: #F1F5F9; min-height: 100vh; }
+header { background: #1E293B; border-bottom: 1px solid #334155; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 22px; font-weight: 700; }
+.logo span { color: #4F46E5; }
+.badge { background: #4F46E5; color: white; font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+.main { display: grid; grid-template-columns: 1fr 360px; gap: 20px; padding: 20px; max-width: 1300px; margin: 0 auto; }
+@media(max-width:900px){ .main { grid-template-columns: 1fr; } }
+.card { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+.col { display: flex; flex-direction: column; gap: 16px; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity .15s; }
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn-blue { background: #4F46E5; color: white; }
+.btn-red  { background: #EF4444; color: white; }
+.btn-gray { background: #273548; color: #F1F5F9; border: 1px solid #334155; }
+.btn-groq { background: #F55036; color: white; }
+.btn-copy { background: #0EA5E9; color: white; }
+.btn-trans{ background: #8B5CF6; color: white; }
+.btn-sm   { padding: 7px 14px; font-size: 13px; }
+.status-bar { display: flex; align-items: center; gap: 10px; background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; }
+.dot-s { width: 9px; height: 9px; border-radius: 50%; background: #94A3B8; flex-shrink: 0; }
+.dot-s.on    { background: #EF4444; animation: blink 1s infinite; }
+.dot-s.pause { background: #F59E0B; }
+.dot-s.done  { background: #10B981; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.timer { font-size: 54px; font-weight: 200; letter-spacing: 5px; text-align: center; padding: 10px 0 4px; }
+.timer.on { color: #EF4444; }
+.controls { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px; flex-wrap: wrap; }
+.tbox { background: #273548; border: 1px solid #334155; border-radius: 8px; height: 230px; overflow-y: auto; padding: 14px; font-size: 13px; line-height: 1.7; }
+.tbox::-webkit-scrollbar { width: 5px; }
+.tbox::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.seg { margin-bottom: 10px; }
+.seg-meta { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.stag { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 4px; color: white; }
+.sts  { font-size: 11px; color: #94A3B8; }
+.itxt { color: #94A3B8; font-style: italic; }
+.hint { color: #94A3B8; text-align: center; padding: 40px 20px; }
+.spk-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; }
+.spk-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 12px; border: 1px solid #334155; background: #273548; }
+.cdot { width: 7px; height: 7px; border-radius: 50%; }
+textarea.notes { width: 100%; background: #273548; border: 1px solid #334155; border-radius: 8px; color: #F1F5F9; font-size: 13px; padding: 12px; resize: vertical; min-height: 90px; font-family: inherit; line-height: 1.6; }
+textarea.notes:focus { outline: none; border-color: #4F46E5; }
+.srow { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; }
+.srow:last-child { border-bottom: none; }
+.srow-l { font-size: 13px; }
+.srow-s { font-size: 11px; color: #94A3B8; margin-top: 2px; }
+.tog { position: relative; width: 42px; height: 24px; }
+.tog input { opacity: 0; width: 0; height: 0; }
+.ttrack { position: absolute; inset: 0; background: #334155; border-radius: 24px; cursor: pointer; transition: .2s; }
+.ttrack:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+.tog input:checked + .ttrack { background: #4F46E5; }
+.tog input:checked + .ttrack:before { transform: translateX(18px); }
+select.sel { background: #273548; color: #F1F5F9; border: 1px solid #334155; border-radius: 6px; padding: 5px 10px; font-size: 13px; }
+/* TRADUCTION */
+.trans-box { background: #0F172A; border: 1px solid #8B5CF6; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.7; max-height: 160px; overflow-y: auto; color: #C4B5FD; margin-top: 10px; }
+.trans-btns { display: flex; gap: 8px; margin-bottom: 10px; }
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; }
+.modal-bg.show { display: flex; align-items: center; justify-content: center; }
+.mbox { background: #1E293B; border: 1px solid #334155; border-radius: 14px; padding: 28px; width: 460px; max-width: 95vw; }
+.mbox h2 { font-size: 18px; margin-bottom: 6px; }
+.mbox-sub { font-size: 13px; color: #94A3B8; margin-bottom: 20px; }
+.mc-btn { float: right; background: none; border: none; color: #94A3B8; font-size: 26px; cursor: pointer; line-height: 1; }
+.flbl { display: block; font-size: 12px; color: #94A3B8; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
+.finput { width: 100%; background: #0F172A; border: 1px solid #334155; border-radius: 8px; color: #F1F5F9; font-size: 13px; padding: 10px 14px; font-family: monospace; margin-bottom: 6px; }
+.finput:focus { outline: none; border-color: #F55036; }
+.flink { font-size: 12px; color: #60A5FA; text-decoration: none; }
+.flink:hover { text-decoration: underline; }
+.fsel { width: 100%; background: #0F172A; border: 1px solid #334155; border-radius: 8px; color: #F1F5F9; font-size: 13px; padding: 10px 14px; margin-bottom: 6px; }
+.minfo { font-size: 11px; color: #94A3B8; margin-bottom: 14px; padding: 8px 12px; background: #273548; border-radius: 6px; }
+.mactions { display: flex; gap: 10px; margin-top: 16px; }
+/* TABS */
+.mtabs { display: flex; border: 1px solid #334155; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+.mtab { flex: 1; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: #273548; color: #94A3B8; transition: .15s; text-align: center; }
+.mtab.ag { background: #F55036; color: white; }
+.mtab.ac { background: #0EA5E9; color: white; }
+.cfgzone { background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+.cfghdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.cpy-zone { background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 16px; }
+.cpy-zone p { font-size: 13px; color: #94A3B8; margin-bottom: 12px; line-height: 1.7; }
+.clinks { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.clink { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid #334155; background: #1E293B; color: #F1F5F9; transition: opacity .15s; }
+.clink:hover { opacity: .8; }
+.clink.gem { border-color: #1A73E8; color: #60A5FA; }
+.clink.gpt { border-color: #10A37F; color: #34D399; }
+.aibox { margin-top: 16px; }
+.aihdr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ainm { font-weight: 700; font-size: 14px; }
+.rbox { background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; max-height: 380px; overflow-y: auto; }
+.rbox::-webkit-scrollbar { width: 5px; }
+.rbox::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.ldots { display: none; color: #94A3B8; align-items: center; gap: 4px; }
+.ldots span { animation: blink2 1.2s infinite; font-size: 22px; }
+.ldots span:nth-child(2) { animation-delay: .2s; }
+.ldots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink2 { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+.ract { display: none; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.scell { background: #273548; border-radius: 8px; padding: 14px; text-align: center; }
+.sval { font-size: 30px; font-weight: 200; }
+.slbl { font-size: 12px; color: #94A3B8; }
+.key-saved-badge { display: inline-block; background: rgba(16,185,129,.2); border: 1px solid #10B981; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #10B981; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<!-- MODAL GROQ -->
+<div class="modal-bg" id="modalBg">
+  <div class="mbox">
+    <button class="mc-btn" id="btnMC">&times;</button>
+    <h2>Groq — Configuration API</h2>
+    <p class="mbox-sub">100% gratuit, sans carte bancaire. Cle sauvegardee automatiquement dans votre navigateur.</p>
+    <label class="flbl">Cle API Groq</label>
+    <input type="password" class="finput" id="inGKey" placeholder="gsk_..." />
+    <a class="flink" href="https://console.groq.com/keys" target="_blank">Obtenir ma cle gratuite sur console.groq.com</a>
+    <div style="margin-top:16px">
+      <label class="flbl">Modele IA</label>
+      <select class="fsel" id="selMdl">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Meilleur qualite (recommande)</option>
+        <option value="llama3-8b-8192">Llama 3 8B — Rapide et leger</option>
+        <option value="gemma2-9b-it">Gemma 2 9B — Google open source</option>
+        <option value="mistral-saba-24b">Mistral Saba 24B — Excellent en francais</option>
+      </select>
+      <div class="minfo" id="mdlInfo">Llama 3.3 70B : 6 000 req/jour — Ideal pour comptes rendus</div>
+    </div>
+    <div class="mactions">
+      <button class="btn btn-groq" id="btnSave" style="flex:1">Sauvegarder</button>
+      <button class="btn btn-gray" id="btnCancel">Annuler</button>
+    </div>
+    <p style="font-size:11px;color:#94A3B8;margin-top:12px">Cle sauvegardee dans localStorage de votre navigateur (sur cet appareil uniquement).</p>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Meeting <span>Recorder</span> Pro</div>
+  <span class="badge">v5.0</span>
+  <div id="hDate" style="margin-left:auto;font-size:12px;color:#94A3B8"></div>
+</header>
+
+<div class="main">
+  <div class="col">
+
+    <!-- ENREGISTREMENT -->
+    <div class="card">
+      <div class="card-title">Enregistrement</div>
+      <div class="status-bar">
+        <div class="dot-s" id="dotS"></div>
+        <span id="stMsg">Pret a enregistrer</span>
+        <span id="spkCnt" style="margin-left:auto;font-size:12px;color:#94A3B8"></span>
+      </div>
+      <div class="timer" id="timerEl">00:00:00</div>
+      <div class="controls">
+        <button class="btn btn-blue" id="btnStart">Demarrer</button>
+        <button class="btn btn-gray" id="btnPause" disabled>Pause</button>
+        <button class="btn btn-red"  id="btnStop"  disabled>Terminer</button>
+      </div>
+      <div style="font-size:12px;color:#94A3B8;margin-bottom:8px">Intervenants detectes</div>
+      <div class="spk-list" id="spkList"><span style="font-size:12px;color:#94A3B8">Aucun intervenant pour l'instant</span></div>
+    </div>
+
+    <!-- TRANSCRIPTION -->
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        Transcription en direct
+        <span id="lBadge" style="font-size:11px;background:#273548;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-weight:400;text-transform:none;letter-spacing:0">FR</span>
+      </div>
+      <div class="tbox" id="tbox"><div class="hint">La transcription apparaitra ici des le debut de l'enregistrement</div></div>
+    </div>
+
+    <!-- TRADUCTION -->
+    <div class="card">
+      <div class="card-title">Traduction en direct</div>
+      <div class="trans-btns">
+        <button class="btn btn-trans btn-sm" id="btnFrEn">FR vers EN</button>
+        <button class="btn btn-trans btn-sm" id="btnEnFr">EN vers FR</button>
+        <button class="btn btn-gray btn-sm"  id="btnTransClear">Effacer</button>
+      </div>
+      <div class="trans-box" id="transBox"><div class="hint">La traduction apparaitra ici (necessite la cle Groq)</div></div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <div class="card-title">Mes notes personnelles</div>
+      <textarea class="notes" id="notesEl" placeholder="Prenez vos notes ici pendant la reunion...
+
+Elles seront integrees au compte rendu final."></textarea>
+      <p style="font-size:11px;color:#94A3B8;margin-top:6px">Vos notes sont incluses dans le prompt envoye a l'IA</p>
+    </div>
+
+    <!-- COMPTE RENDU -->
+    <div class="card">
+      <div class="card-title">Compte rendu</div>
+      <div class="mtabs">
+        <div class="mtab ag" id="tabG">Groq (gratuit)</div>
+        <div class="mtab"    id="tabC">Copier-coller</div>
+      </div>
+
+      <div id="panG">
+        <div class="cfgzone">
+          <div class="cfghdr">
+            Configuration Groq
+            <button class="btn btn-gray btn-sm" id="btnOpenM">Configurer</button>
+          </div>
+          <div style="font-size:12px;color:#94A3B8" id="gStatus">Non configure</div>
+        </div>
+        <button class="btn btn-groq" id="btnGen">Generer le compte rendu avec Groq</button>
+      </div>
+
+      <div id="panC" style="display:none">
+        <div class="cpy-zone">
+          <p>Copiez la transcription structuree et collez-la dans Gemini ou ChatGPT pour obtenir votre compte rendu.</p>
+          <button class="btn btn-copy btn-sm" id="btnCpyTr">Copier la transcription + notes</button>
+          <div class="clinks">
+            <a class="clink gem" href="https://gemini.google.com" target="_blank">Ouvrir Gemini</a>
+            <a class="clink gpt" href="https://chatgpt.com" target="_blank">Ouvrir ChatGPT</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="aibox" id="aiBox" style="display:none">
+        <div class="aihdr">
+          <span style="font-size:16px;font-weight:800;color:#F55036">GROQ</span>
+          <span class="ainm" id="aiNm"></span>
+          <div class="ldots" id="ldots"><span>&bull;</span><span>&bull;</span><span>&bull;</span></div>
+        </div>
+        <div class="rbox" id="rbox"></div>
+        <div class="ract" id="ract">
+          <button class="btn btn-gray btn-sm" id="btnCpyR">Copier</button>
+          <button class="btn btn-gray btn-sm" id="btnDl">Exporter TXT</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DROITE -->
+  <div class="col">
+    <div class="card">
+      <div class="card-title">Parametres</div>
+      <div class="srow">
+        <div><div class="srow-l">Langue</div></div>
+        <select class="sel" id="langSel">
+          <option value="fr-FR">Francais</option>
+          <option value="en-US">Anglais</option>
+          <option value="es-ES">Espagnol</option>
+          <option value="de-DE">Allemand</option>
+          <option value="it-IT">Italien</option>
+        </select>
+      </div>
+      <div class="srow">
+        <div><div class="srow-l">Anonymisation</div><div class="srow-s">Intervenant 1, 2, 3...</div></div>
+        <label class="tog"><input type="checkbox" id="chkA" checked><span class="ttrack"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="srow-l">Detection tours de parole</div><div class="srow-s">Nouveau segment apres pause</div></div>
+        <label class="tog"><input type="checkbox" id="chkD" checked><span class="ttrack"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="srow-l">Horodatage</div></div>
+        <label class="tog"><input type="checkbox" id="chkT" checked><span class="ttrack"></span></label>
+      </div>
+      <div class="srow">
+        <div><div class="srow-l">Participants</div></div>
+        <select class="sel" id="nbP">
+          <option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Guide rapide</div>
+      <div style="font-size:13px;color:#94A3B8;line-height:1.9">
+        <b style="color:#F1F5F9">Groq (gratuit)</b><br>
+        Configurez votre cle (sauvegardee automatiquement).<br>
+        Enregistrez, puis generez en 1 clic.<br><br>
+        <b style="color:#F1F5F9">Traduction</b><br>
+        FR-EN ou EN-FR sur toute la transcription.<br>
+        Necessite la cle Groq.<br><br>
+        <b style="color:#F1F5F9">Sans cle</b><br>
+        Onglet "Copier-coller" + Gemini ou ChatGPT.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Statistiques</div>
+      <div class="sgrid">
+        <div class="scell"><div class="sval" id="stS">0</div><div class="slbl">Segments</div></div>
+        <div class="scell"><div class="sval" id="stW">0</div><div class="slbl">Mots</div></div>
+        <div class="scell"><div class="sval" id="stSp">0</div><div class="slbl">Intervenants</div></div>
+        <div class="scell"><div class="sval" id="stD">0m</div><div class="slbl">Duree</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ETAT GLOBAL
+// ============================================================
+var isRec=false, isPaused=false, timerInt=null, secs=0, recognition=null;
+var segments=[], spkMap={}, curSpk=0, lastSpkT=0, wc=0, meetStart=null;
+var gKey='', gModel='llama-3.3-70b-versatile';
+var SPK_PAL=['#6366F1','#8B5CF6','#EC4899','#F59E0B','#10B981'];
+var MDL_INFO={
+  'llama-3.3-70b-versatile':'Llama 3.3 70B : 6 000 req/jour — Recommande',
+  'llama3-8b-8192':'Llama 3 8B : 14 400 req/jour — Rapide',
+  'gemma2-9b-it':'Gemma 2 9B : 14 400 req/jour — Google open source',
+  'mistral-saba-24b':'Mistral Saba 24B : 500 req/jour — Excellent en francais'
+};
+
+// ============================================================
+// INIT — charger la cle depuis localStorage
+// ============================================================
+window.onload = function() {
+  document.getElementById('hDate').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  var savedKey   = localStorage.getItem('mrp_groq_key');
+  var savedModel = localStorage.getItem('mrp_groq_model');
+  if (savedKey)   { gKey = savedKey; }
+  if (savedModel) { gModel = savedModel; }
+  updateGroqStatus();
+
+  // MODAL
+  document.getElementById('btnOpenM').onclick = openModal;
+  document.getElementById('btnMC').onclick    = closeModal;
+  document.getElementById('btnCancel').onclick = closeModal;
+  document.getElementById('modalBg').onclick  = function(e){ if(e.target===this) closeModal(); };
+
+  document.getElementById('selMdl').onchange = function(){
+    document.getElementById('mdlInfo').textContent = MDL_INFO[this.value]||'';
+  };
+  document.getElementById('btnSave').onclick = saveConfig;
+
+  // TABS
+  document.getElementById('tabG').onclick = function(){
+    this.className='mtab ag';
+    document.getElementById('tabC').className='mtab';
+    document.getElementById('panG').style.display='block';
+    document.getElementById('panC').style.display='none';
+    document.getElementById('aiBox').style.display='none';
+  };
+  document.getElementById('tabC').onclick = function(){
+    this.className='mtab ac';
+    document.getElementById('tabG').className='mtab';
+    document.getElementById('panC').style.display='block';
+    document.getElementById('panG').style.display='none';
+    document.getElementById('aiBox').style.display='none';
+  };
+
+  // LANGUE
+  document.getElementById('langSel').onchange = function(){
+    var m={'fr-FR':'FR','en-US':'EN','es-ES':'ES','de-DE':'DE','it-IT':'IT'};
+    document.getElementById('lBadge').textContent = m[this.value]||'FR';
+  };
+
+  // ENREGISTREMENT
+  document.getElementById('btnStart').onclick = startRec;
+  document.getElementById('btnPause').onclick = pauseRec;
+  document.getElementById('btnStop').onclick  = stopRec;
+
+  // TRADUCTION
+  document.getElementById('btnFrEn').onclick     = function(){ doTranslate('FR','EN'); };
+  document.getElementById('btnEnFr').onclick     = function(){ doTranslate('EN','FR'); };
+  document.getElementById('btnTransClear').onclick = function(){
+    document.getElementById('transBox').innerHTML = '<div class="hint">Traduction effacee</div>';
+  };
+
+  // COMPTE RENDU
+  document.getElementById('btnGen').onclick    = genGroq;
+  document.getElementById('btnCpyTr').onclick  = cpyTranscript;
+  document.getElementById('btnCpyR').onclick   = cpyResult;
+  document.getElementById('btnDl').onclick     = dlResult;
+};
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(){
+  document.getElementById('inGKey').value  = gKey;
+  document.getElementById('selMdl').value  = gModel;
+  document.getElementById('mdlInfo').textContent = MDL_INFO[gModel]||'';
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+function saveConfig(){
+  var k = document.getElementById('inGKey').value.trim();
+  var m = document.getElementById('selMdl').value;
+  if (k) { gKey = k; localStorage.setItem('mrp_groq_key', k); }
+  gModel = m; localStorage.setItem('mrp_groq_model', m);
+  updateGroqStatus();
+  closeModal();
+}
+function updateGroqStatus(){
+  var el = document.getElementById('gStatus');
+  if (gKey) {
+    var mn = document.getElementById('selMdl') ? document.getElementById('selMdl').options[document.getElementById('selMdl').selectedIndex]||{text:gModel} : {text:gModel};
+    el.innerHTML = '<b style="color:#10B981">Configure</b> <span class="key-saved-badge">Cle sauvegardee</span>';
+  } else {
+    el.textContent = 'Non configure — cliquez sur Configurer';
+  }
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function fmt(s){ var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60; return [h,m,sc].map(function(v){return String(v).padStart(2,'0');}).join(':'); }
+
+// ============================================================
+// ENREGISTREMENT
+// ============================================================
+function startRec(){
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)){
+    alert('Reconnaissance vocale non supportee. Utilisez Chrome ou Edge.'); return;
+  }
+  meetStart=new Date(); isRec=true; isPaused=false;
+  secs=0; segments=[]; spkMap={}; curSpk=0; lastSpkT=0; wc=0;
+  document.getElementById('tbox').innerHTML='';
+  document.getElementById('spkList').innerHTML='<span style="font-size:12px;color:#94A3B8">En ecoute...</span>';
+  document.getElementById('stS').textContent='0';
+  document.getElementById('stW').textContent='0';
+  document.getElementById('stSp').textContent='0';
+  document.getElementById('timerEl').className='timer on';
+  document.getElementById('btnStart').disabled=true;
+  document.getElementById('btnPause').disabled=false;
+  document.getElementById('btnStop').disabled=false;
+  document.getElementById('dotS').className='dot-s on';
+  document.getElementById('stMsg').textContent='Enregistrement en cours...';
+  document.getElementById('aiBox').style.display='none';
+  timerInt=setInterval(function(){ secs++; document.getElementById('timerEl').textContent=fmt(secs); document.getElementById('stD').textContent=Math.floor(secs/60)+'m'; },1000);
+  initSR();
+}
+
+function pauseRec(){
+  if (!isPaused){
+    isPaused=true; if(recognition)recognition.stop(); clearInterval(timerInt);
+    document.getElementById('btnPause').textContent='Reprendre';
+    document.getElementById('dotS').className='dot-s pause';
+    document.getElementById('stMsg').textContent='En pause';
+    document.getElementById('timerEl').className='timer';
+  } else {
+    isPaused=false;
+    document.getElementById('btnPause').textContent='Pause';
+    document.getElementById('dotS').className='dot-s on';
+    document.getElementById('stMsg').textContent='Enregistrement en cours...';
+    document.getElementById('timerEl').className='timer on';
+    timerInt=setInterval(function(){ secs++; document.getElementById('timerEl').textContent=fmt(secs); document.getElementById('stD').textContent=Math.floor(secs/60)+'m'; },1000);
+    initSR();
+  }
+}
+
+function stopRec(){
+  isRec=false; isPaused=false;
+  if(recognition)recognition.stop(); clearInterval(timerInt);
+  document.getElementById('timerEl').className='timer';
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('btnPause').disabled=true;
+  document.getElementById('btnStop').disabled=true;
+  document.getElementById('btnPause').textContent='Pause';
+  document.getElementById('dotS').className='dot-s done';
+  document.getElementById('stMsg').textContent='Termine — '+fmt(secs);
+  var it=document.getElementById('iSeg'); if(it)it.remove();
+}
+
+// ============================================================
+// SPEECH RECOGNITION
+// ============================================================
+function getSpk(){
+  var now=Date.now(), gap=now-lastSpkT;
+  var diar=document.getElementById('chkD').checked;
+  var max=Math.min(parseInt(document.getElementById('nbP').value)||4,5);
+  if(diar&&lastSpkT>0&&gap>2500&&Math.random()>0.45) curSpk=(curSpk+1)%max;
+  lastSpkT=now;
+  var id='S'+(curSpk+1);
+  if(!spkMap[id]){
+    spkMap[id]={id:id,lbl:'Intervenant '+(curSpk+1),col:SPK_PAL[curSpk]||'#6366F1',wc:0};
+    var html='', keys=Object.keys(spkMap);
+    for(var i=0;i<keys.length;i++){var s=spkMap[keys[i]];html+='<div class="spk-chip"><span class="cdot" style="background:'+s.col+'"></span><span>'+s.lbl+'</span></div>';}
+    document.getElementById('spkList').innerHTML=html;
+    document.getElementById('spkCnt').textContent=keys.length+' intervenant(s)';
+    document.getElementById('stSp').textContent=keys.length;
+  }
+  return id;
+}
+
+function initSR(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.lang=document.getElementById('langSel').value;
+  recognition.continuous=true; recognition.interimResults=true; recognition.maxAlternatives=1;
+
+  recognition.onresult=function(ev){
+    if(isPaused)return;
+    var fi='',ii='';
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal)fi+=ev.results[i][0].transcript;
+      else ii+=ev.results[i][0].transcript;
+    }
+    var ex=document.getElementById('iSeg'); if(ex)ex.remove();
+    if(fi.trim()){
+      var sid=getSpk(), spk=spkMap[sid], ws=fi.trim().split(' ').length;
+      wc+=ws; spk.wc+=ws;
+      var ts=document.getElementById('chkT').checked?new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      segments.push({sid:sid,txt:fi.trim(),ts:ts,t:secs});
+      var box=document.getElementById('tbox'), d=document.createElement('div');
+      d.className='seg';
+      d.innerHTML='<div class="seg-meta"><span class="stag" style="background:'+spk.col+'">'+spk.lbl+'</span>'+(ts?'<span class="sts">'+ts+'</span>':'')+'</div><div>'+fi.trim()+'</div>';
+      box.appendChild(d); box.scrollTop=box.scrollHeight;
+      document.getElementById('stS').textContent=segments.length;
+      document.getElementById('stW').textContent=wc;
+    }
+    if(ii.trim()){
+      var sp2=spkMap['S'+(curSpk+1)],lb=sp2?sp2.lbl:'Intervenant ?',co=sp2?sp2.col:'#6366F1';
+      var dv=document.createElement('div'); dv.id='iSeg'; dv.className='seg';
+      dv.innerHTML='<div class="seg-meta"><span class="stag" style="background:'+co+'">'+lb+'</span></div><div class="itxt">'+ii+'...</div>';
+      var b2=document.getElementById('tbox'); b2.appendChild(dv); b2.scrollTop=b2.scrollHeight;
+    }
+  };
+  recognition.onerror=function(e){ if(e.error==='no-speech'||e.error==='aborted')return; };
+  recognition.onend=function(){ if(isRec&&!isPaused){try{recognition.start();}catch(e){}} };
+  try{ recognition.start(); } catch(e){ alert('Erreur micro : '+e.message); }
+}
+
+// ============================================================
+// TRADUCTION
+// ============================================================
+function doTranslate(from, to){
+  if(segments.length===0){
+    document.getElementById('transBox').innerHTML='<div class="hint">Enregistrez d'abord une reunion pour voir la traduction</div>';
+    return;
+  }
+  if(!gKey){
+    document.getElementById('transBox').innerHTML='<div style="color:#FCA5A5;padding:10px">Cle Groq requise pour la traduction. Cliquez sur Configurer.</div>';
+    return;
+  }
+  document.getElementById('transBox').innerHTML='<div class="hint">Traduction en cours...</div>';
+  var txt='';
+  for(var i=0;i<segments.length;i++){
+    var sg=segments[i], sp=spkMap[sg.sid];
+    txt+=sp.lbl+': '+sg.txt+'\n';
+  }
+  var prompt='Traduis ce texte de '+from+' vers '+to+' en conservant les noms des intervenants et la structure:\n\n'+txt+'\n\nFournis uniquement la traduction, sans commentaire.';
+  callGroq(gKey, gModel, prompt).then(function(res){
+    document.getElementById('transBox').innerHTML=res.replace(/\n/g,'<br>');
+  }).catch(function(e){
+    document.getElementById('transBox').innerHTML='<div style="color:#FCA5A5;padding:10px">Erreur : '+e.message+'</div>';
+  });
+}
+
+// ============================================================
+// PROMPT + COMPTE RENDU
+// ============================================================
+function buildPrompt(){
+  var notes=document.getElementById('notesEl').value.trim();
+  var anon=document.getElementById('chkA').checked;
+  var ds=meetStart?meetStart.toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('fr-FR');
+  var tr='';
+  for(var i=0;i<segments.length;i++){var sg=segments[i],sp=spkMap[sg.sid];tr+='['+(sg.ts||fmt(sg.t))+'] '+sp.lbl+': '+sg.txt+'\n';}
+  var p='Tu es un assistant expert en redaction de comptes rendus de reunion professionnels.\n\n';
+  p+='Date : '+ds+'\nDuree : '+fmt(secs)+'\nIntervenants : '+Object.keys(spkMap).length+'\nAnonymisation : '+(anon?'Activee':'Desactivee')+'\n\n';
+  p+='TRANSCRIPTION COMPLETE :\n'+(tr||'(Aucune transcription)')+'\n';
+  if(notes)p+='\nNOTES DE L\'ORGANISATEUR :\n'+notes+'\n';
+  p+='\nGenere un compte rendu professionnel structure en francais avec :\n1. RESUME EXECUTIF (3 a 5 phrases)\n2. PARTICIPANTS\n3. POINTS ABORDES\n4. DECISIONS PRISES\n5. ACTIONS A SUIVRE\n';
+  if(notes)p+='6. NOTES IMPORTANTES\n';
+  return p;
+}
+
+function genGroq(){
+  if(segments.length===0){alert('Aucune transcription. Enregistrez d'abord une reunion.');return;}
+  document.getElementById('aiBox').style.display='block';
+  document.getElementById('rbox').textContent='';
+  document.getElementById('ract').style.display='none';
+  document.getElementById('ldots').style.display='flex';
+  document.getElementById('aiNm').textContent=gModel.split('-').slice(0,3).join(' ');
+  if(!gKey){
+    document.getElementById('ldots').style.display='none';
+    document.getElementById('rbox').textContent='Cle Groq non configuree.\nCliquez sur "Configurer" pour entrer votre cle gratuite.';
+    document.getElementById('ract').style.display='flex';
+    return;
+  }
+  callGroq(gKey, gModel, buildPrompt()).then(function(res){
+    document.getElementById('ldots').style.display='none';
+    document.getElementById('rbox').textContent=res;
+    document.getElementById('ract').style.display='flex';
+    document.getElementById('stMsg').textContent='Compte rendu genere !';
+    document.getElementById('aiBox').scrollIntoView({behavior:'smooth'});
+  }).catch(function(e){
+    document.getElementById('ldots').style.display='none';
+    document.getElementById('rbox').textContent='Erreur : '+e.message+'\n\nVerifiez votre cle Groq.';
+    document.getElementById('ract').style.display='flex';
+  });
+}
+
+function callGroq(k, model, prompt){
+  return fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+k},
+    body:JSON.stringify({model:model,messages:[{role:'system',content:'Tu es un assistant expert en comptes rendus professionnels en francais.'},{role:'user',content:prompt}],temperature:0.3,max_tokens:4096})
+  }).then(function(r){
+    if(!r.ok)return r.json().then(function(e){throw new Error(e.error?e.error.message:'HTTP '+r.status);});
+    return r.json();
+  }).then(function(d){
+    return d.choices&&d.choices[0]&&d.choices[0].message?d.choices[0].message.content:'Aucun resultat recu';
+  });
+}
+
+function cpyTranscript(){
+  navigator.clipboard.writeText(buildPrompt()).then(function(){
+    document.getElementById('btnCpyTr').textContent='Copie ! Collez dans Gemini ou ChatGPT';
+    setTimeout(function(){ document.getElementById('btnCpyTr').textContent='Copier la transcription + notes'; },3000);
+  });
+}
+function cpyResult(){
+  navigator.clipboard.writeText(document.getElementById('rbox').textContent)
+    .then(function(){ document.getElementById('stMsg').textContent='Copie dans le presse-papiers !'; });
+}
+function dlResult(){
+  var d=new Date().toISOString().slice(0,10);
+  var b=new Blob([document.getElementById('rbox').textContent],{type:'text/plain;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='compte-rendu-'+d+'.txt'; a.click();
+}
+</script>
+</body>
+</html>
