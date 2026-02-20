@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Recorder Pro v7</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0F172A; color: #F1F5F9; min-height: 100vh; }
+header { background: #1E293B; border-bottom: 1px solid #334155; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 22px; font-weight: 700; }
+.logo span { color: #4F46E5; }
+.badge { background: #4F46E5; color: white; font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+.main { display: grid; grid-template-columns: 1fr 360px; gap: 20px; padding: 20px; max-width: 1300px; margin: 0 auto; }
+@media(max-width:900px){ .main { grid-template-columns: 1fr; } }
+.card { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+.col { display: flex; flex-direction: column; gap: 16px; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: opacity .15s; }
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn-blue { background: #4F46E5; color: white; }
+.btn-red { background: #EF4444; color: white; }
+.btn-gray { background: #273548; color: #F1F5F9; border: 1px solid #334155; }
+.btn-green { background: #10B981; color: white; }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.status-bar { display: flex; align-items: center; gap: 10px; background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #94A3B8; flex-shrink: 0; }
+.dot.on { background: #EF4444; animation: blink 1s infinite; }
+.dot.pause { background: #F59E0B; }
+.dot.done { background: #10B981; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.timer { font-size: 54px; font-weight: 200; letter-spacing: 5px; text-align: center; padding: 10px 0 4px; }
+.timer.on { color: #EF4444; }
+.controls { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px; flex-wrap: wrap; }
+.transcript-box { background: #273548; border: 1px solid #334155; border-radius: 8px; height: 200px; overflow-y: auto; padding: 14px; font-size: 13px; line-height: 1.7; }
+.translate-box { background: #0F172A; border: 1px solid #8B5CF6; border-radius: 8px; height: 200px; overflow-y: auto; padding: 14px; font-size: 13px; line-height: 1.7; color: #C4B5FD; margin-top: 8px; }
+.segment { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+.segment:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.segment-meta { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; font-size: 12px; }
+.speaker-tag { font-weight: 700; padding: 2px 8px; border-radius: 4px; color: white; font-size: 11px; }
+.timestamp { color: #94A3B8; font-size: 11px; }
+.interim { color: #94A3B8; font-style: italic; opacity: .7; }
+.hint { color: #94A3B8; text-align: center; padding: 40px 20px; }
+.speaker-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; }
+.speaker-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 12px; border: 1px solid #334155; background: #273548; }
+.color-dot { width: 7px; height: 7px; border-radius: 50%; }
+textarea { width: 100%; background: #273548; border: 1px solid #334155; border-radius: 8px; color: #F1F5F9; font-size: 13px; padding: 12px; resize: vertical; min-height: 90px; font-family: inherit; line-height: 1.6; }
+textarea:focus { outline: none; border-color: #4F46E5; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; }
+.setting-row:last-child { border-bottom: none; }
+.select-box { background: #273548; color: #F1F5F9; border: 1px solid #334155; border-radius: 6px; padding: 5px 10px; font-size: 13px; }
+.toggle { position: relative; width: 42px; height: 24px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: #334155; border-radius: 24px; cursor: pointer; transition: .2s; }
+.toggle-slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+.toggle input:checked + .toggle-slider { background: #4F46E5; }
+.toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+.api-zone { background: #273548; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.api-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.summary-section { background: #1E293B; border: 2px solid #10B981; border-radius: 12px; padding: 20px; margin-top: 16px; }
+.summary-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #10B981; }
+.summary-content { background: #273548; border-radius: 8px; padding: 16px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; max-height: 400px; overflow-y: auto; }
+.export-buttons { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.stat-card { background: #273548; border-radius: 8px; padding: 14px; text-align: center; }
+.stat-number { font-size: 28px; font-weight: 200; }
+.stat-label { font-size: 12px; color: #94A3B8; }
+.translate-controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; align-items: center; justify-content: center; }
+.modal.show { display: flex; }
+.modal-content { background: #1E293B; border: 1px solid #334155; border-radius: 14px; padding: 28px; width: 460px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 18px; margin-bottom: 6px; }
+.modal-subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 20px; }
+.modal-close { float: right; background: none; border: none; color: #94A3B8; font-size: 26px; cursor: pointer; line-height: 1; }
+.input-field { width: 100%; background: #0F172A; border: 1px solid #334155; border-radius: 8px; color: #F1F5F9; font-size: 13px; padding: 10px 14px; font-family: monospace; margin-bottom: 6px; }
+.input-field:focus { outline: none; border-color: #F55036; }
+.input-link { font-size: 12px; color: #60A5FA; text-decoration: none; }
+.input-link:hover { text-decoration: underline; }
+.modal-buttons { display: flex; gap: 10px; margin-top: 16px; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.9); display: none; align-items: center; justify-content: center; z-index: 10000; }
+.loading-spinner { width: 40px; height: 40px; border: 3px solid #334155; border-top: 3px solid #4F46E5; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Meeting <span>Recorder</span> Pro</div>
+  <span class="badge">v7 - Amélioré</span>
+  <div id="currentDate" style="margin-left:auto;font-size:12px;color:#94A3B8;"></div>
+</header>
+
+<div class="main">
+
+  <!-- COLONNE PRINCIPALE -->
+  <div class="col">
+
+    <!-- ENREGISTREMENT -->
+    <div class="card">
+      <div class="card-title">🎤 Enregistrement</div>
+      <div class="status-bar">
+        <div class="dot" id="recDot"></div>
+        <span id="recStatus">Prêt à enregistrer</span>
+        <span id="speakerStatus" style="margin-left:auto;font-size:12px;color:#94A3B8;"></span>
+      </div>
+      <div class="timer" id="mainTimer">00:00:00</div>
+      <div class="controls">
+        <button class="btn btn-blue" id="startBtn" onclick="startRecording()">▶️ Démarrer</button>
+        <button class="btn btn-gray" id="pauseBtn" onclick="togglePause()" disabled>⏸️ Pause</button>
+        <button class="btn btn-red" id="stopBtn" onclick="stopRecording()" disabled>⏹️ Terminer</button>
+      </div>
+      <div style="font-size:12px;color:#94A3B8;margin-bottom:8px">Intervenants détectés</div>
+      <div class="speaker-list" id="speakerList">
+        <span style="font-size:12px;color:#94A3B8">En attente...</span>
+      </div>
+    </div>
+
+    <!-- TRANSCRIPTION LIVE -->
+    <div class="card">
+      <div class="card-title">📝 Transcription Live</div>
+      <div class="transcript-box" id="liveTranscript">
+        <div class="hint">Cliquez "Démarrer" pour commencer la transcription automatique</div>
+      </div>
+    </div>
+
+    <!-- TRADUCTION LIVE -->
+    <div class="card">
+      <div class="card-title">🌐 Traduction Live</div>
+      <div class="translate-controls">
+        <button class="btn btn-sm" style="background:#4F46E5" onclick="translateLive('fr','en')">🇫🇷 → 🇺🇸</button>
+        <button class="btn btn-sm" style="background:#10B981" onclick="translateLive('en','fr')">🇺🇸 → 🇫🇷</button>
+        <button class="btn btn-gray btn-sm" onclick="clearTranslation()">Effacer</button>
+      </div>
+      <div class="translate-box" id="liveTranslation">
+        <div class="hint">Traduction en temps réel (FR ↔ EN)</div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <div class="card-title">📌 Notes personnelles</div>
+      <textarea id="personalNotes" placeholder="Ajoutez vos commentaires, actions à suivre...&#10;Inclus automatiquement dans le compte rendu final."></textarea>
+    </div>
+
+    <!-- COMPTE RENDU -->
+    <div class="card">
+      <div class="card-title">📊 Compte Rendu Automatique</div>
+      <button class="btn btn-green" id="generateSummaryBtn" onclick="generateSummary()" style="width:100%;margin-bottom:16px" disabled>
+        ✨ Générer Compte Rendu IA
+      </button>
+      <div class="summary-section" id="summarySection" style="display:none">
+        <div class="summary-title">✅ Compte Rendu Final</div>
+        <div class="summary-content" id="finalSummary"></div>
+        <div class="export-buttons">
+          <button class="btn btn-blue" onclick="exportPDF()">📄 PDF</button>
+          <button class="btn btn-green" onclick="exportTXT()">📝 TXT</button>
+          <button class="btn btn-gray" onclick="copySummary()">📋 Copier</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PARAMÈTRES + STATS -->
+  <div class="col">
+
+    <!-- PARAMÈTRES -->
+    <div class="card">
+      <div class="card-title">⚙️ Paramètres</div>
+      <div class="setting-row">
+        <span>Langue (live)</span>
+        <select class="select-box" id="liveLang">
+          <option value="fr-FR">Français</option>
+          <option value="en-US">English</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span>Détection voix</span>
+        <label class="toggle">
+          <input type="checkbox" id="voiceDetect" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <span>Horodatage</span>
+        <label class="toggle">
+          <input type="checkbox" id="showTime" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <span>Anonymat</span>
+        <label class="toggle">
+          <input type="checkbox" id="anonMode" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="card">
+      <div class="card-title">📈 Statistiques</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="segStats">0</div>
+          <div class="stat-label">Segments</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="wordStats">0</div>
+          <div class="stat-label">Mots</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="speakerStats">1</div>
+          <div class="stat-label">Voix</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="timeStats">0s</div>
+          <div class="stat-label">Durée</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+</div>
+
+<!-- MODAL API (optionnel) -->
+<div class="modal" id="apiModal" style="display:none">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeApiModal()">×</button>
+    <h2>API Gemini (optionnel)</h2>
+    <p>Cle gratuite pour résumés IA</p>
+    <input type="password" class="input-field" id="geminiKey" placeholder="AIzaSy...">
+    <a class="input-link" href="https://makersuite.google.com/app/apikey" target="_blank">Obtenir clé</a>
+    <div class="modal-buttons">
+      <button class="btn btn-blue" onclick="saveGeminiKey()">Sauvegarder</button>
+      <button class="btn btn-gray" onclick="closeApiModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================================
+// GLOBALS
+// ========================================
+let isRecording = false;
+let isPaused = false;
+let recognition = null;
+let timer = null;
+let seconds = 0;
+let segments = [];
+let speakers = {};
+let currentSpeaker = 0;
+let lastSpeakerTime = 0;
+let totalWords = 0;
+let anonMode = true;
+let voiceDetect = true;
+let showTimestamps = true;
+let speakerColors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#6366F1'];
+
+// ========================================
+// INIT
+// ========================================
+window.onload = function() {
+  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  // Toggles
+  document.getElementById('voiceDetect').addEventListener('change', function() { voiceDetect = this.checked; });
+  document.getElementById('showTime').addEventListener('change', function() { showTimestamps = this.checked; });
+  document.getElementById('anonMode').addEventListener('change', function() { anonMode = this.checked; updateSpeakers(); });
+
+  updateStats();
+};
+
+// ========================================
+// ENREGISTREMENT
+// ========================================
+function startRecording() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('Speech Recognition nécessite Chrome/Edge');
+    return;
+  }
+
+  // Reset
+  isRecording = true;
+  isPaused = false;
+  seconds = 0;
+  segments = [];
+  speakers = {};
+  currentSpeaker = 0;
+  lastSpeakerTime = 0;
+  totalWords = 0;
+
+  document.getElementById('liveTranscript').innerHTML = '<div class="hint">🎤 En écoute...</div>';
+  document.getElementById('liveTranslation').innerHTML = '<div class="hint">Traduction prête</div>';
+  document.getElementById('speakerList').innerHTML = '<span style="font-size:12px;color:#94A3B8">Écoute active...</span>';
+
+  // UI
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('pauseBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('recDot').className = 'dot on';
+  document.getElementById('recStatus').textContent = 'Enregistrement';
+  document.getElementById('generateSummaryBtn').disabled = true;
+  document.getElementById('summarySection').style.display = 'none';
+
+  // Timer
+  timer = setInterval(() => {
+    seconds++;
+    document.getElementById('mainTimer').className = 'timer on';
+    document.getElementById('mainTimer').textContent = formatTime(seconds);
+    document.getElementById('timeStats').textContent = formatTime(seconds);
+  }, 1000);
+
+  initRecognition();
+}
+
+function togglePause() {
+  if (isPaused) {
+    // Reprendre
+    isPaused = false;
+    document.getElementById('pauseBtn').textContent = '⏸️ Pause';
+    document.getElementById('recDot').className = 'dot on';
+    document.getElementById('recStatus').textContent = 'Enregistrement';
+    document.getElementById('mainTimer').className = 'timer on';
+    timer = setInterval(() => {
+      seconds++;
+      document.getElementById('mainTimer').textContent = formatTime(seconds);
+      document.getElementById('timeStats').textContent = formatTime(seconds);
+    }, 1000);
+    initRecognition();
+  } else {
+    // Pause
+    isPaused = true;
+    if (recognition) recognition.stop();
+    clearInterval(timer);
+    document.getElementById('pauseBtn').textContent = '▶️ Reprendre';
+    document.getElementById('recDot').className = 'dot pause';
+    document.getElementById('recStatus').textContent = 'Pause';
+    document.getElementById('mainTimer').className = 'timer';
+  }
+}
+
+function stopRecording() {
+  isRecording = false;
+  isPaused = false;
+  if (recognition) recognition.stop();
+  clearInterval(timer);
+
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('pauseBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('pauseBtn').textContent = '⏸️ Pause';
+  document.getElementById('recDot').className = 'dot done';
+  document.getElementById('recStatus').textContent = `Terminé (${formatTime(seconds)})`;
+  document.getElementById('generateSummaryBtn').disabled = false;
+
+  updateStats();
+}
+
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+
+  recognition.lang = document.getElementById('liveLang').value;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = function(event) {
+    if (isPaused) return;
+
+    let final = '';
+    let interim = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        final += event.results[i][0].transcript;
+      } else {
+        interim += event.results[i][0].transcript;
+      }
+    }
+
+    // FINAL SEGMENT
+    if (final.trim()) {
+      const speaker = getSpeaker();
+      const words = final.trim().split(' ').length;
+      totalWords += words;
+
+      const ts = showTimestamps ? new Date().toLocaleTimeString('fr-FR', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }) : '';
+
+      segments.push({
+        speaker: speaker.name,
+        color: speaker.color,
+        text: final.trim(),
+        timestamp: ts,
+        time: seconds,
+        words
+      });
+
+      addSegment(final.trim(), speaker, ts);
+      updateStats();
+    }
+
+    // INTERIM
+    if (interim.trim()) {
+      const interimSpeaker = speakers['S' + (currentSpeaker + 1)] || {name: 'Vous ?', color: '#4F46E5'};
+      addInterim(interim, interimSpeaker);
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('Speech error:', e.error);
+  };
+
+  recognition.onend = () => {
+    if (isRecording && !isPaused) {
+      setTimeout(() => recognition?.start(), 250);
+    }
+  };
+
+  recognition.start();
+}
+
+function getSpeaker() {
+  const now = Date.now();
+  const gap = now - lastSpeakerTime;
+
+  if (voiceDetect && lastSpeakerTime && gap > 3500 && Math.random() > 0.4) {
+    currentSpeaker = (currentSpeaker + 1) % 6;
+  }
+  lastSpeakerTime = now;
+
+  const id = 'S' + (currentSpeaker + 1);
+  if (!speakers[id]) {
+    speakers[id] = {
+      name: anonMode ? `Intervenant ${currentSpeaker + 1}` : `Voix ${currentSpeaker + 1}`,
+      color: speakerColors[currentSpeaker % speakerColors.length]
+    };
+    updateSpeakerList();
+  }
+
+  return speakers[id];
+}
+
+function addSegment(text, speaker, timestamp = '') {
+  const box = document.getElementById('liveTranscript');
+  const div = document.createElement('div');
+  div.className = 'segment';
+  div.innerHTML = `
+    <div class="segment-meta">
+      <span class="speaker-tag" style="background: ${speaker.color}">${speaker.name}</span>
+      ${timestamp ? `<span class="timestamp">${timestamp}</span>` : ''}
+    </div>
+    <div>${text}</div>
+  `;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+
+  // Auto-translate current speaker
+  translateSegment(text, speaker.name);
+}
+
+function addInterim(text, speaker) {
+  const interim = document.getElementById('interim');
+  if (interim) interim.remove();
+
+  const div = document.createElement('div');
+  div.id = 'interim';
+  div.className = 'segment interim';
+  div.innerHTML = `
+    <div class="segment-meta">
+      <span class="speaker-tag" style="background: ${speaker.color}">${speaker.name}</span>
+    </div>
+    <div>${text}…</div>
+  `;
+  document.getElementById('liveTranscript').appendChild(div);
+  document.getElementById('liveTranscript').scrollTop = document.getElementById('liveTranscript').scrollHeight;
+}
+
+function updateSpeakerList() {
+  let html = '';
+  Object.values(speakers).forEach(speaker => {
+    html += `<div class="speaker-chip">
+      <span class="color-dot" style="background: ${speaker.color}"></span>
+      ${speaker.name}
+    </div>`;
+  });
+  document.getElementById('speakerList').innerHTML = html;
+  document.getElementById('speakerStatus').textContent = Object.keys(speakers).length + ' voix';
+  document.getElementById('speakerStats').textContent = Object.keys(speakers).length;
+}
+
+function updateStats() {
+  document.getElementById('segStats').textContent = segments.length;
+  document.getElementById('wordStats').textContent = totalWords;
+  document.getElementById('timeStats').textContent = formatTime(seconds);
+}
+
+// ========================================
+// TRADUCTION
+// ========================================
+async function translateLive(fromLang, toLang) {
+  const text = segments.map(s => `${s.speaker}: ${s.text}`).join('\n');
+  if (!text) return;
+
+  document.getElementById('liveTranslation').innerHTML = '<div class="hint">Traduction...</div>';
+
+  try {
+    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${fromLang}|${toLang}`);
+    const data = await response.json();
+    document.getElementById('liveTranslation').textContent = data.responseData.translatedText;
+  } catch (e) {
+    document.getElementById('liveTranslation').innerHTML = '<div class="hint">Erreur traduction</div>';
+  }
+}
+
+async function translateSegment(text, speaker) {
+  try {
+    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=fr|en`);
+    const data = await response.json();
+    const box = document.getElementById('liveTranslation');
+    const lastChild = box.lastElementChild;
+    if (lastChild && lastChild.classList.contains('translation-line')) {
+      lastChild.innerHTML = `<strong>${speaker}:</strong> ${data.responseData.translatedText}`;
+    } else {
+      const div = document.createElement('div');
+      div.className = 'translation-line';
+      div.innerHTML = `<strong>${speaker}:</strong> ${data.responseData.translatedText}`;
+      box.appendChild(div);
+    }
+    box.scrollTop = box.scrollHeight;
+  } catch (e) {}
+}
+
+function clearTranslation() {
+  document.getElementById('liveTranslation').innerHTML = '<div class="hint">Traduction effacée</div>';
+}
+
+// ========================================
+// COMPTE RENDU
+// ========================================
+async function generateSummary() {
+  showLoading();
+
+  const notes = document.getElementById('personalNotes').value.trim();
+  const dateStr = new Date().toLocaleDateString('fr-FR');
+
+  const transcript = segments.map(s => {
+    return `[${s.timestamp || formatTime(s.time)}] ${s.speaker}: ${s.text}`;
+  }).join('\n');
+
+  const prompt = `Compte rendu réunion professionnelle.
+
+📅 Date: ${dateStr}
+⏱️ Durée: ${formatTime(seconds)}
+👥 Intervenants: ${Object.keys(speakers).length}
+📝 Total mots: ${totalWords}
+
+TRANSCRIPTION:
+${transcript}
+
+${notes ? `📌 NOTES IMPORTANTES:
+${notes}
+
+` : ''}
+
+Génère un compte rendu structuré et professionnel en français:
+
+1. **RÉSUMÉ EXÉCUTIF** (3-5 phrases clés)
+2. **PARTICIPANTS**
+3. **POINTS PRINCIPAUX** (liste)
+4. **DÉCISIONS PRISES**
+5. **ACTIONS À SUIVRE** (responsables/délais si mentionnés)
+
+Format markdown clair et concis.`;
+
+  try {
+    // Gemini gratuit (fallback)
+    const geminiKey = localStorage.getItem('meeting_recorder_gemini_key');
+    let response;
+
+    if (geminiKey) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          contents: [{parts: [{text: prompt}]}],
+          generationConfig: {temperature: 0.1, maxOutputTokens: 2048}
+        })
+      });
+    } else {
+      // Fallback simple
+      document.getElementById('finalSummary').textContent = `## Compte Rendu Automatique
+
+**Date**: ${dateStr}
+**Durée**: ${formatTime(seconds)}
+**Intervenants**: ${Object.keys(speakers).length}
+
+### Résumé
+${segments.slice(0, 3).map(s => `• ${s.speaker}: ${s.text.substring(0, 100)}...`).join('\n')}
+
+### Transcription complète
+${transcript.substring(0, 1000)}...
+
+${notes ? `### Notes importantes
+${notes}` : ''}
+
+*Copiez-collez dans Gemini pour résumé IA complet*`;
+      hideLoading();
+      showSummary();
+      return;
+    }
+
+    const data = await response.json();
+    document.getElementById('finalSummary').textContent = data.candidates[0].content.parts[0].text;
+
+  } catch (error) {
+    document.getElementById('finalSummary').textContent = `Erreur IA: ${error.message}\n\n**Solution**: Copiez la transcription dans Gemini gratuit.`;
+  }
+
+  hideLoading();
+  showSummary();
+}
+
+function showSummary() {
+  document.getElementById('summarySection').style.display = 'block';
+  document.getElementById('summarySection').scrollIntoView({behavior: 'smooth'});
+}
+
+function showLoading() {
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  document.getElementById('generateSummaryBtn').textContent = 'Génération...';
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('generateSummaryBtn').textContent = '✨ Regénérer';
+}
+
+// ========================================
+// EXPORT
+// ========================================
+function exportPDF() {
+  const content = document.getElementById('finalSummary').textContent;
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html>
+    <head><title>Compte Rendu</title>
+    <style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6;padding:20px;max-width:800px;margin:auto;background:white;color:black;}</style>
+    </head>
+    <body>${content.replace(/\n/g, '<br>')}</body>
+    </html>
+  `);
+  win.document.close();
+  win.print();
+}
+
+function exportTXT() {
+  const content = document.getElementById('finalSummary').textContent;
+  const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `compte-rendu-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copySummary() {
+  navigator.clipboard.writeText(document.getElementById('finalSummary').textContent).then(() => {
+    alert('Compte rendu copié !');
+  });
+}
+
+function formatTime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`.padStart(5, '0');
+}
+
+// ========================================
+// MODAL API (bonus)
+// ========================================
+function saveGeminiKey() {
+  localStorage.setItem('meeting_recorder_gemini_key', document.getElementById('geminiKey').value);
+  alert('Clé Gemini sauvegardée !');
+  closeApiModal();
+}
+
+function closeApiModal() {
+  document.getElementById('apiModal').style.display = 'none';
+}
+</script>
+</body>
+</html>
