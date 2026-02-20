@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Recorder Pro</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color: #F1F5F9; min-height: 100vh; }
+
+header { background: rgba(30,41,59,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #334155; padding: 16px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 22px; font-weight: 700; }
+.logo span { background: linear-gradient(135deg, #4F46E5, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.badge { background: linear-gradient(135deg, #4F46E5, #6366F1); color: white; font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 700; }
+
+.main { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+@media(max-width:1000px){ .main { grid-template-columns: 1fr; padding: 16px; } }
+
+.card { background: rgba(30,41,59,0.8); backdrop-filter: blur(20px); border: 1px solid #334155; border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.card-title { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all .2s; }
+.btn-primary { background: linear-gradient(135deg, #4F46E5, #6366F1); color: white; box-shadow: 0 4px 14px rgba(79,70,229,0.4); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79,70,229,0.5); }
+.btn-secondary { background: rgba(43,53,72,0.8); color: #F1F5F9; border: 1px solid #475569; }
+.btn-secondary:hover { background: #475569; }
+.btn-success { background: linear-gradient(135deg, #10B981, #059669); color: white; }
+.btn-danger { background: linear-gradient(135deg, #EF4444, #DC2626); color: white; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.btn-sm { padding: 8px 16px; font-size: 13px; }
+
+.status-bar { display: flex; align-items: center; gap: 12px; background: rgba(43,53,72,0.8); border: 1px solid #475569; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; }
+.status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; background: #64748B; }
+.status-dot.recording { background: #EF4444; box-shadow: 0 0 12px rgba(239,68,68,0.6); animation: pulse 1.5s infinite; }
+.status-dot.paused { background: #F59E0B; }
+.status-dot.stopped { background: #10B981; }
+@keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+
+.timer { font-size: 60px; font-weight: 200; letter-spacing: 8px; text-align: center; padding: 20px 0; background: rgba(15,23,42,0.5); border-radius: 16px; margin: 20px 0; }
+.controls { display: flex; justify-content: center; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
+
+.chat-container { height: 280px; overflow-y: auto; padding: 16px; background: rgba(15,23,42,0.6); border-radius: 12px; border: 1px solid #334155; }
+.message { margin-bottom: 16px; }
+.message-header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.speaker-badge { padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; color: white; }
+.timestamp-small { color: #94A3B8; font-size: 11px; }
+.message-text { line-height: 1.6; padding: 10px 14px; background: rgba(43,53,72,0.8); border-radius: 10px; border-left: 3px solid #4F46E5; }
+.interim-text { opacity: 0.5; font-style: italic; border-left-color: #64748B !important; }
+.hint-text { text-align: center; color: #64748B; padding: 30px 0; font-size: 14px; }
+
+.translate-output { background: rgba(139,92,246,0.1); border: 1px solid #8B5CF6; border-radius: 12px; padding: 16px; font-size: 13px; line-height: 1.6; max-height: 150px; overflow-y: auto; color: #C4B5FD; min-height: 50px; }
+
+textarea { width: 100%; min-height: 120px; padding: 12px 16px; background: rgba(15,23,42,0.8); border: 1px solid #475569; border-radius: 12px; color: #F1F5F9; font-size: 14px; font-family: inherit; resize: vertical; }
+textarea:focus { outline: none; border-color: #4F46E5; }
+select { padding: 8px 12px; background: rgba(15,23,42,0.8); border: 1px solid #475569; border-radius: 10px; color: #F1F5F9; font-size: 13px; cursor: pointer; }
+select option { background: #1E293B; }
+
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(52,64,85,0.5); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 13px; }
+
+.toggle-container { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+.toggle-input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #334155; transition: .3s; border-radius: 28px; }
+.toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: white; transition: .3s; border-radius: 50%; }
+.toggle-input:checked + .toggle-slider { background: #4F46E5; }
+.toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; }
+.stat-item { text-align: center; padding: 16px; background: rgba(43,53,72,0.6); border-radius: 12px; }
+.stat-value { font-size: 28px; font-weight: 300; margin-bottom: 4px; color: #A5B4FC; }
+.stat-label { font-size: 12px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.summary-section { background: rgba(16,185,129,0.08); border: 2px solid #10B981; border-radius: 16px; padding: 24px; margin-top: 20px; }
+.summary-title { font-size: 16px; font-weight: 800; color: #10B981; margin-bottom: 16px; text-align: center; }
+.summary-content { background: rgba(30,41,59,0.9); border-radius: 12px; padding: 20px; white-space: pre-wrap; font-size: 14px; line-height: 1.7; max-height: 400px; overflow-y: auto; }
+.export-row { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+
+/* MODAL */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { background: #1E293B; border: 1px solid #475569; border-radius: 20px; padding: 32px; width: 100%; max-width: 480px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.modal-title { font-size: 20px; font-weight: 800; }
+.modal-close { background: rgba(148,163,184,0.1); border: none; color: #94A3B8; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(148,163,184,0.25); }
+.input-label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94A3B8; margin-bottom: 8px; }
+.input-field { width: 100%; padding: 14px 16px; background: rgba(15,23,42,0.9); border: 1px solid #475569; border-radius: 12px; color: #F1F5F9; font-size: 14px; transition: border-color .2s; }
+.input-field:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.2); }
+.input-hint { font-size: 12px; color: #64748B; margin-top: 8px; }
+.input-hint a { color: #60A5FA; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+.loading-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.95); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+.loading-spinner { width: 48px; height: 48px; border: 4px solid rgba(79,70,229,0.2); border-top: 4px solid #4F46E5; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: #94A3B8; font-size: 14px; }
+
+.key-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin-left: auto; }
+.key-ok { background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid rgba(16,185,129,0.3); }
+.key-missing { background: rgba(239,68,68,0.15); color: #EF4444; border: 1px solid rgba(239,68,68,0.3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>Meeting</span>Recorder</div>
+  <span class="badge">Pro</span>
+  <div id="dateTime" style="margin-left:auto;font-size:12px;color:#94A3B8;"></div>
+</header>
+
+<div class="main">
+
+  <!-- COLONNE GAUCHE -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <div class="card">
+      <div class="card-title">
+        🎤 Transcription Live
+        <span id="liveLangBadge" style="font-size:11px;background:rgba(79,70,229,0.2);padding:2px 8px;border-radius:6px;font-weight:500;">FR</span>
+      </div>
+      <div class="status-bar">
+        <div class="status-dot" id="recordDot"></div>
+        <span id="recordStatus">Prêt</span>
+        <span id="speakerCount" style="margin-left:auto;font-size:12px;color:#94A3B8;"></span>
+      </div>
+      <div class="timer" id="sessionTimer">00:00</div>
+      <div class="controls">
+        <button class="btn btn-primary" id="recordBtn" onclick="toggleRecording()">▶️ Démarrer</button>
+        <button class="btn btn-secondary" id="pauseBtn" onclick="togglePause()" disabled>⏸️ Pause</button>
+      </div>
+      <div class="chat-container" id="liveChat">
+        <div class="hint-text">Cliquez "Démarrer" pour lancer la reconnaissance vocale</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        ✨ Compte Rendu IA
+        <span id="keyStatusBadge" class="key-status key-missing">● Clé manquante</span>
+        <button class="btn btn-secondary btn-sm" onclick="openGeminiModal()" style="margin-left:8px;">🔑 Config Gemini</button>
+      </div>
+      <button class="btn btn-success" id="summaryBtn" onclick="generateSummary()" style="width:100%;padding:16px;font-size:15px;" disabled>
+        🚀 Générer Compte Rendu
+      </button>
+      <div class="summary-section" id="summaryContainer" style="display:none;">
+        <div class="summary-title">✅ Compte Rendu Final</div>
+        <div class="summary-content" id="summaryText"></div>
+        <div class="export-row">
+          <button class="btn btn-primary btn-sm" onclick="exportPDF()">📄 PDF</button>
+          <button class="btn btn-success btn-sm" onclick="exportTXT()">📝 TXT</button>
+          <button class="btn btn-secondary btn-sm" onclick="copySummary()">📋 Copier</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearSummary()">🗑️ Effacer</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLONNE DROITE -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <div class="card">
+      <div class="card-title">🌐 Traduction</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="translateSession('fr','en')">🇫🇷 → 🇺🇸</button>
+        <button class="btn btn-success btn-sm" onclick="translateSession('en','fr')">🇺🇸 → 🇫🇷</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearTranslation()">🗑️</button>
+      </div>
+      <div class="translate-output" id="translationOutput">Traduction des dernières phrases</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 Notes & Actions</div>
+      <textarea id="userNotes" placeholder="💡 Idées importantes...&#10;✅ Actions à suivre...&#10;👤 Responsables...&#10;📅 Dates limites..."></textarea>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Paramètres</div>
+      <div class="setting-row">
+        <span class="setting-label">Langue</span>
+        <select id="transLang" onchange="updateLangBadge()">
+          <option value="fr-FR">🇫🇷 Français</option>
+          <option value="en-US">🇺🇸 Anglais</option>
+          <option value="es-ES">🇪🇸 Espagnol</option>
+          <option value="de-DE">🇩🇪 Allemand</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Détection voix</span>
+        <label class="toggle-container">
+          <input type="checkbox" class="toggle-input" id="diarMode" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Anonymat</span>
+        <label class="toggle-container">
+          <input type="checkbox" class="toggle-input" id="anonSetting" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Horodatage</span>
+        <label class="toggle-container">
+          <input type="checkbox" class="toggle-input" id="timeStampMode" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+
+
+  </div>
+</div>
+
+<!-- MODAL GEMINI -->
+<div id="geminiModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 class="modal-title">🔑 Clé API Gemini</h2>
+      <button class="modal-close" onclick="closeGeminiModal()">✕</button>
+    </div>
+    <div>
+      <label class="input-label">Clé API Gemini</label>
+      <input type="password" class="input-field" id="apiKeyInput" placeholder="AIzaSy...">
+      <p class="input-hint">Obtenez votre clé gratuite sur <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeGeminiModal()">Annuler</button>
+      <button class="btn btn-primary" id="saveKeyBtn" onclick="saveApiKey()">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingScreen" class="loading-overlay" style="display:none;">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Génération du compte rendu IA...</div>
+</div>
+
+<script>
+// === ÉTAT ===
+var recording = false;
+var paused = false;
+var recognizer = null;
+var timerId = null;
+var elapsed = 0;
+var segments = [];
+var speakers = {};
+var currentSpeakerId = 0;
+var lastSpeakerSwitch = 0;
+var wordTotal = 0;
+var speakerColors = ['#4F46E5','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4'];
+
+// === INIT ===
+window.onload = function() {
+  updateDateTime();
+  setInterval(updateDateTime, 60000);
+  updateLangBadge();
+  updateKeyStatus();
+};
+
+function updateDateTime() {
+  document.getElementById('dateTime').textContent = new Date().toLocaleString('fr-FR', {weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function updateLangBadge() {
+  var v = document.getElementById('transLang').value;
+  var m = {'fr-FR':'🇫🇷 FR','en-US':'🇺🇸 EN','es-ES':'🇪🇸 ES','de-DE':'🇩🇪 DE'};
+  document.getElementById('liveLangBadge').textContent = m[v] || 'FR';
+}
+
+function updateKeyStatus() {
+  var key = localStorage.getItem('meeting_gemini_key');
+  var b = document.getElementById('keyStatusBadge');
+  if (key && key.length > 5) {
+    b.className = 'key-status key-ok';
+    b.textContent = '● Clé configurée';
+  } else {
+    b.className = 'key-status key-missing';
+    b.textContent = '● Clé manquante';
+  }
+}
+
+function updateStats() {
+  // stats section removed
+}
+
+function fmtTime(s) {
+  return Math.floor(s/60) + ':' + (s%60 < 10 ? '0' : '') + (s%60);
+}
+
+// === ENREGISTREMENT ===
+function toggleRecording() {
+  if (!recording) startRecording(); else stopRecording();
+}
+
+function startRecording() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('⚠️ La reconnaissance vocale nécessite Chrome ou Edge.\nVeuillez utiliser un de ces navigateurs.');
+    return;
+  }
+  recording = true; paused = false;
+  elapsed = 0; segments = []; speakers = {};
+  currentSpeakerId = 0; wordTotal = 0;
+  lastSpeakerSwitch = Date.now();
+
+  document.getElementById('liveChat').innerHTML = '<div class="hint-text">🎤 En écoute...</div>';
+  document.getElementById('recordBtn').innerHTML = '⏹️ Arrêter';
+  document.getElementById('recordBtn').className = 'btn btn-danger';
+  document.getElementById('pauseBtn').disabled = false;
+  document.getElementById('pauseBtn').innerHTML = '⏸️ Pause';
+  document.getElementById('recordDot').className = 'status-dot recording';
+  document.getElementById('recordStatus').textContent = 'Enregistrement en cours';
+  document.getElementById('summaryBtn').disabled = true;
+  document.getElementById('summaryContainer').style.display = 'none';
+
+  timerId = setInterval(function() {
+    elapsed++;
+    document.getElementById('sessionTimer').textContent = fmtTime(elapsed);
+    document.getElementById('durationLive').textContent = fmtTime(elapsed);
+  }, 1000);
+
+  startRecognizer();
+}
+
+function stopRecording() {
+  recording = false; paused = false;
+  if (recognizer) { try { recognizer.stop(); } catch(e){} }
+  if (timerId) { clearInterval(timerId); timerId = null; }
+  document.getElementById('recordBtn').innerHTML = '▶️ Démarrer';
+  document.getElementById('recordBtn').className = 'btn btn-primary';
+  document.getElementById('pauseBtn').disabled = true;
+  document.getElementById('recordDot').className = 'status-dot stopped';
+  document.getElementById('recordStatus').textContent = 'Terminé — ' + fmtTime(elapsed);
+  document.getElementById('summaryBtn').disabled = segments.length === 0;
+  updateStats();
+}
+
+function togglePause() {
+  if (!recording) return;
+  if (paused) {
+    paused = false;
+    document.getElementById('pauseBtn').innerHTML = '⏸️ Pause';
+    document.getElementById('recordDot').className = 'status-dot recording';
+    document.getElementById('recordStatus').textContent = 'Enregistrement en cours';
+    timerId = setInterval(function(){ elapsed++; document.getElementById('sessionTimer').textContent = fmtTime(elapsed); }, 1000);
+    startRecognizer();
+  } else {
+    paused = true;
+    if (recognizer) { try { recognizer.stop(); } catch(e){} }
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    document.getElementById('pauseBtn').innerHTML = '▶️ Reprendre';
+    document.getElementById('recordDot').className = 'status-dot paused';
+    document.getElementById('recordStatus').textContent = 'En pause';
+  }
+}
+
+function startRecognizer() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognizer = new SR();
+  recognizer.lang = document.getElementById('transLang').value;
+  recognizer.continuous = true;
+  recognizer.interimResults = true;
+
+  recognizer.onresult = function(e) {
+    if (paused) return;
+    var fin = '', inter = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+      else inter += e.results[i][0].transcript;
+    }
+    if (fin.trim()) {
+      var spk = getNextSpeaker();
+      wordTotal += fin.trim().split(/\s+/).length;
+      var ts = document.getElementById('timeStampMode').checked ? new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+      segments.push({id:spk.id, name:spk.name, color:spk.color, text:fin.trim(), timestamp:ts, time:elapsed});
+      addMsg(spk, fin.trim(), ts);
+      updateStats();
+    }
+    if (inter.trim()) showInterim(inter.trim());
+  };
+
+  recognizer.onerror = function(e) {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    console.warn('STT error:', e.error);
+  };
+
+  recognizer.onend = function() {
+    if (recording && !paused) setTimeout(function(){ try { recognizer.start(); } catch(x){} }, 300);
+  };
+
+  try { recognizer.start(); } catch(e) { console.error(e); }
+}
+
+function getNextSpeaker() {
+  var now = Date.now();
+  if (document.getElementById('diarMode').checked && now - lastSpeakerSwitch > 4000 && Math.random() > 0.4) {
+    currentSpeakerId = (currentSpeakerId + 1) % 6;
+  }
+  lastSpeakerSwitch = now;
+  var id = 'S' + (currentSpeakerId + 1);
+  if (!speakers[id]) {
+    var anon = document.getElementById('anonSetting').checked;
+    speakers[id] = {id:id, name:(anon?'Intervenant':'Voix')+' '+(currentSpeakerId+1), color:speakerColors[currentSpeakerId]};
+    document.getElementById('speakerCount').textContent = Object.keys(speakers).length + ' voix';
+  }
+  return speakers[id];
+}
+
+function addMsg(spk, text, ts) {
+  var chat = document.getElementById('liveChat');
+  var old = document.getElementById('interimEl');
+  if (old) old.remove();
+  var d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="message-header"><span class="speaker-badge" style="background:'+spk.color+'">'+spk.name+'</span>'+(ts?'<span class="timestamp-small">'+ts+'</span>':'')+'</div><div class="message-text">'+esc(text)+'</div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showInterim(text) {
+  var chat = document.getElementById('liveChat');
+  var el = document.getElementById('interimEl');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'interimEl';
+    el.className = 'message';
+    el.innerHTML = '<div class="message-text interim-text"></div>';
+    chat.appendChild(el);
+  }
+  el.querySelector('.message-text').textContent = text + '…';
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// === TRADUCTION ===
+function translateSession(from, to) {
+  var text = segments.slice(-8).map(function(s){ return s.name+': '+s.text; }).join('\n');
+  if (!text) { alert('Aucun texte à traduire'); return; }
+  document.getElementById('translationOutput').textContent = 'Traduction en cours...';
+  fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text.substring(0,500))+'&langpair='+from+'|'+to)
+    .then(function(r){return r.json();})
+    .then(function(d){ document.getElementById('translationOutput').textContent = d.responseStatus===200 ? d.responseData.translatedText : 'Erreur traduction'; })
+    .catch(function(){ document.getElementById('translationOutput').textContent = 'Erreur réseau'; });
+}
+
+function clearTranslation() {
+  document.getElementById('translationOutput').textContent = 'Traduction des dernières phrases';
+}
+
+// === COMPTE RENDU ===
+async function generateSummary() {
+  if (segments.length === 0) { alert("Enregistrez d'abord une réunion"); return; }
+  var key = localStorage.getItem('meeting_gemini_key');
+  var dateStr = new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var transcript = segments.map(function(s){ return '['+(s.timestamp||fmtTime(s.time))+'] '+s.name+': '+s.text; }).join('\n');
+  var notes = document.getElementById('userNotes').value.trim();
+
+  if (!key) {
+    var r = '## Compte Rendu — '+dateStr+'\n**Durée**: '+fmtTime(elapsed)+'\n\n### Participants\n'+Object.values(speakers).map(function(s){return '• '+s.name;}).join('\n')+'\n\n### Transcription\n'+segments.map(function(s){return '• '+s.name+': '+s.text;}).join('\n')+'\n\n---\n⚠️ Configurez votre clé Gemini pour un résumé IA complet.';
+    document.getElementById('summaryText').textContent = r;
+    document.getElementById('summaryContainer').style.display = 'block';
+    document.getElementById('summaryContainer').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+
+  document.getElementById('loadingScreen').style.display = 'flex';
+  var prompt = 'Tu es un expert en comptes rendus de réunions. Date: '+dateStr+'. Durée: '+fmtTime(elapsed)+'. Intervenants: '+Object.keys(speakers).length+'.\n\nTRANSCRIPTION:\n'+transcript+(notes?'\n\nNOTES:\n'+notes:'')+'\n\nRédige un compte rendu professionnel avec:\n## 1. RÉSUMÉ EXÉCUTIF\n## 2. PARTICIPANTS\n## 3. POINTS PRINCIPAUX\n## 4. DÉCISIONS\n## 5. ACTIONS À SUIVRE\n\nStyle: professionnel, concis.';
+
+  try {
+    var resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.1,maxOutputTokens:2048}})
+    });
+    var data = await resp.json();
+    if (data.error) {
+      document.getElementById('summaryText').textContent = '❌ Erreur API: '+data.error.message+'\n\nVérifiez votre clé API sur aistudio.google.com';
+    } else {
+      document.getElementById('summaryText').textContent = data.candidates[0].content.parts[0].text || 'Aucun contenu';
+    }
+  } catch(e) {
+    document.getElementById('summaryText').textContent = '❌ Erreur réseau: '+e.message;
+  }
+
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('summaryContainer').style.display = 'block';
+  document.getElementById('summaryContainer').scrollIntoView({behavior:'smooth'});
+}
+
+// === MODAL ===
+function openGeminiModal() {
+  document.getElementById('apiKeyInput').value = localStorage.getItem('meeting_gemini_key') || '';
+  document.getElementById('geminiModal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('apiKeyInput').focus(); }, 100);
+}
+
+function closeGeminiModal() {
+  document.getElementById('geminiModal').style.display = 'none';
+}
+
+function saveApiKey() {
+  var key = document.getElementById('apiKeyInput').value.trim();
+  if (key) localStorage.setItem('meeting_gemini_key', key);
+  else localStorage.removeItem('meeting_gemini_key');
+  updateKeyStatus();
+  var btn = document.getElementById('saveKeyBtn');
+  btn.innerHTML = '✅ Sauvegardé !';
+  btn.style.background = '#10B981';
+  setTimeout(function(){ btn.innerHTML = '💾 Sauvegarder'; btn.style.background = ''; closeGeminiModal(); }, 1200);
+}
+
+// Clic sur fond = ferme modal
+document.getElementById('geminiModal').onclick = function(e) {
+  if (e.target === this) closeGeminiModal();
+};
+
+// === EXPORT ===
+function exportTXT() {
+  var t = document.getElementById('summaryText').textContent;
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'}));
+  a.download = 'compte-rendu-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+}
+
+function exportPDF() {
+  var t = document.getElementById('summaryText').textContent;
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>Compte Rendu</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.8;color:#1F2937;}pre{white-space:pre-wrap;font-family:inherit;font-size:15px;}</style></head><body><pre>'+t.replace(/</g,'&lt;')+'</pre></body></html>');
+  w.document.close(); w.print();
+}
+
+function copySummary() {
+  navigator.clipboard.writeText(document.getElementById('summaryText').textContent).then(function(){
+    var btn = event.target; var o = btn.textContent;
+    btn.textContent = '✅ Copié !';
+    setTimeout(function(){ btn.textContent = o; }, 2000);
+  });
+}
+
+function clearSummary() {
+  document.getElementById('summaryContainer').style.display = 'none';
+  document.getElementById('summaryText').textContent = '';
+  document.getElementById('userNotes').value = '';
+}
+</script>
+</body>
+</html>
